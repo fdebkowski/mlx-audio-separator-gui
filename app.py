@@ -29,6 +29,9 @@ SETTINGS_FILE = APP_SUPPORT / "settings.json"
 GITHUB_URL = "https://github.com/fdebkowski/mlx-audio-separator-gui"
 
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
+# Bump when the curated extra_models.json changes so existing installs drop
+# their cached model index and pick up the additions.
+MODELS_REV = 2
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
 FORMATS = ["FLAC", "WAV", "MP3"]
 MAX_LOG_LINES = 5000  # cap the log widget so long/batch runs don't grow memory without bound
@@ -164,7 +167,8 @@ class SeparatorApp:
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *_: self._apply_filter())
         ttk.Entry(top, textvariable=self.search_var).pack(side="left", fill="x", expand=True, padx=6)
-        self.refresh_btn = ttk.Button(top, text="Refresh list", command=self._load_models_async)
+        self.refresh_btn = ttk.Button(top, text="Refresh list",
+                                      command=lambda: self._load_models_async(force=True))
         self.refresh_btn.pack(side="right")
         self.downloaded_only_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(top, text="Downloaded only", variable=self.downloaded_only_var,
@@ -374,17 +378,21 @@ class SeparatorApp:
         self._save_settings()
 
     # ---------- Models ----------
-    def _load_models_async(self):
+    def _load_models_async(self, force=False):
         self.refresh_btn.configure(state="disabled")
         self.status_var.set("Loading model list…")
-        threading.Thread(target=self._load_models_worker, daemon=True).start()
+        threading.Thread(target=self._load_models_worker, args=(force,),
+                         daemon=True).start()
 
-    def _load_models_worker(self):
+    def _load_models_worker(self, force=False):
         data = None
-        # Prefer cache, else fetch from CLI.
-        if INDEX_CACHE.exists():
+        # Prefer cache (unless stale or a refresh was requested), else fetch
+        # from the CLI.
+        if not force and INDEX_CACHE.exists():
             try:
-                data = json.loads(INDEX_CACHE.read_text())
+                cached = json.loads(INDEX_CACHE.read_text())
+                if isinstance(cached, dict) and cached.get("rev") == MODELS_REV:
+                    data = cached["index"]
             except Exception:
                 data = None
         if data is None and (FROZEN or CLI.exists()):
@@ -398,7 +406,8 @@ class SeparatorApp:
                 idxs = [i for i in (raw.find("{"), raw.find("[")) if i != -1]
                 if idxs:
                     data = json.loads(raw[min(idxs):])
-                    INDEX_CACHE.write_text(json.dumps(data))
+                    INDEX_CACHE.write_text(json.dumps({"rev": MODELS_REV,
+                                                       "index": data}))
             except Exception as e:
                 self.q.put(("models_error", str(e)))
                 return

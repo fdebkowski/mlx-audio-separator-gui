@@ -14,7 +14,7 @@ VENV="$HOME/.venvs/mlx-audio-separator"
 PY="$VENV/bin/python"
 PYI="$VENV/bin/pyinstaller"
 BUNDLE_ID="com.rewon.mlxaudioseparator"
-VERSION="1.2.0"
+VERSION="1.3.0"
 WORK="$HERE/bundle_work"
 DIST="$HERE/dist"
 
@@ -59,6 +59,7 @@ arch -arm64 "$PYI" \
   --collect-all mlx_audio_separator \
   --collect-all mlx_audio_io \
   --collect-all mlx_spectro \
+  --add-data "$HERE/extra_models.json:." \
   --hidden-import lameenc \
   --hidden-import runner \
   --hidden-import app \

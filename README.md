@@ -25,9 +25,11 @@ upload your music. This app does the same job on your own Mac:
 - **Acapellas, instrumentals, drums, bass…** — pick a model, press Separate.
 - **Private and free** — your audio never leaves your computer. Processing runs
   on the Apple Silicon GPU via [MLX](https://github.com/ml-explore/mlx).
-- **160+ community models** — the same Mel-Band RoFormer / BS-RoFormer /
+- **170+ community models** — the same Mel-Band RoFormer / BS-RoFormer /
   MDX23C models used by the stem-separation community, ranked by measured
-  quality (SDR). Models download automatically on first use.
+  quality (SDR), plus a curated set of newer 2025–2026 community releases
+  (unwa Leap and Big Beta 7, becruily Deux and Guitar, Gabox INSTV9/V10,
+  4-stem Mel-Band RoFormers). Models download automatically on first use.
 - **Batch friendly** — drop in a whole folder, choose FLAC, WAV, or MP3 output.
 
 ## Requirements
