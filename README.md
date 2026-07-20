@@ -32,13 +32,33 @@ upload your music. This app does the same job on your own Mac:
 
 ## Requirements
 
-| What | Why |
-| --- | --- |
-| Apple Silicon Mac (M1 or newer), macOS 12+ | MLX runs on Apple GPUs only |
-| [Python 3.13 from python.org](https://www.python.org/downloads/) | bundles the Tcl/Tk toolkit the GUI needs |
-| [Homebrew](https://brew.sh) `ffmpeg` *(recommended)* | MP3/M4A input and MP3 output |
+- **Apple Silicon Mac (M1 or newer), macOS 13+** — MLX runs on Apple GPUs only.
+- **[Homebrew](https://brew.sh) `ffmpeg`** *(recommended)* — needed for MP3/M4A
+  input; without it you can still load and export WAV/FLAC. Install with
+  `brew install ffmpeg`.
+
+That's all you need for the downloadable app. Building from source additionally
+needs [Python 3.13 from python.org](https://www.python.org/downloads/) (it
+bundles the Tcl/Tk toolkit).
 
 ## Install
+
+### Option A — download the app (easiest)
+
+1. Grab **MLX-Audio-Separator-*-macos-arm64.zip** from the
+   [latest release](https://github.com/fdebkowski/mlx-audio-separator-gui/releases/latest).
+2. Unzip it and drag **MLX Audio Separator.app** to your `/Applications` folder.
+3. The app is self-contained (Python and the MLX engine are bundled) but signed
+   ad-hoc, so on first launch macOS Gatekeeper blocks it. Clear the download
+   quarantine once, from Terminal:
+
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/MLX Audio Separator.app"
+   ```
+
+   Then open it normally. (Right-click → **Open** works too if you prefer.)
+
+### Option B — build from source
 
 ```bash
 git clone https://github.com/fdebkowski/mlx-audio-separator-gui.git
@@ -48,10 +68,8 @@ cd mlx-audio-separator-gui
 
 `setup.sh` creates a private Python environment in `~/.venvs/mlx-audio-separator`,
 installs the [mlx-audio-separator](https://github.com/ssmall256/mlx-audio-separator)
-engine, and builds **MLX Audio Separator.app** into `/Applications`.
-
-> **First launch:** the app is signed ad-hoc, so macOS may warn you. Right-click
-> the app → **Open** → **Open** once; after that it opens normally.
+engine, and builds **MLX Audio Separator.app** into `/Applications`. This build
+reuses your Python install instead of bundling one, so it's much smaller.
 
 ## Using the app
 
@@ -92,11 +110,21 @@ dependencies of its own, all separation delegated to the CLI.
 
 | File | Role |
 | --- | --- |
-| `app.py` | The whole GUI — a thin Tkinter driver that shells out to the CLI and streams its output into the log/progress UI |
-| `runner.py` | Launch shim: fixes `PATH` for Finder-launched apps (so `ffmpeg` resolves) and patches `mlx_audio_io.save` to tolerate 24/32-bit sources |
-| `build.sh` | Renders the icon, assembles `MLX Audio Separator.app`, ad-hoc signs it, installs to `/Applications` |
+| `app.py` | The whole GUI — a thin Tkinter driver that shells out to the engine and streams its output into the log/progress UI |
+| `runner.py` | Engine shim (`main()`): fixes `PATH` for Finder-launched apps (so `ffmpeg` resolves) and patches `mlx_audio_io.save` to tolerate 24/32-bit sources |
+| `main_bundle.py` | PyInstaller entry point; one frozen binary runs as the GUI or, with `--separator-runner`, as the engine the GUI subprocesses |
+| `setup.sh` | Source install: venv + engine + `build.sh` |
+| `build.sh` | Builds the lightweight `.app` that runs on your Python (used by `setup.sh`) |
+| `build_bundle.sh` | Builds the self-contained `.app` with PyInstaller (bundles Python + engine) and zips it for release |
+| `bundle_fix_record.py` | Post-build fix: recomputes mlx_audio_io's dist-info RECORD hash, which PyInstaller invalidates by rewriting the binary |
 | `make_icon.swift` | Draws the app icon (gradient squircle + equalizer bars) with AppKit |
-| `setup.sh` | End-user installer: venv + engine + app build |
+
+Build the distributable bundle yourself:
+
+```bash
+~/.venvs/mlx-audio-separator/bin/pip install pyinstaller
+./build_bundle.sh    # → dist/MLX-Audio-Separator-<ver>-macos-arm64.zip
+```
 
 Run from source (after `./setup.sh`):
 

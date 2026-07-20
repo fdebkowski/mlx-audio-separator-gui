@@ -15,6 +15,11 @@ No editable install, no build step — edit `app.py` and rerun. Rebuild the
 `.app` bundle with `./build.sh` only when you need to test Finder/Dock launch
 behavior (that's where `runner.py`'s PATH fix matters).
 
+To build the self-contained release bundle (Python + engine embedded), run
+`./build_bundle.sh` (needs `pip install pyinstaller` in the venv). It runs
+`main_bundle.py` through PyInstaller and applies `bundle_fix_record.py`; test
+its output the same way — click through a real separation.
+
 ## Ground rules
 
 - **Keep the GUI stdlib-only.** The app deliberately has no runtime

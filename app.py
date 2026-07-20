@@ -34,6 +34,17 @@ FORMATS = ["FLAC", "WAV", "MP3"]
 MAX_LOG_LINES = 5000  # cap the log widget so long/batch runs don't grow memory without bound
 PERCENT_RE = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*%")
 
+# In the packaged .app the engine is embedded and sys.executable is the bundle
+# itself; from source it lives in the venv and we drive it through runner.py.
+FROZEN = getattr(sys, "frozen", False)
+
+
+def engine_cmd(args):
+    """Command that runs the separation engine with the given CLI args."""
+    if FROZEN:
+        return [sys.executable, "--separator-runner", *args]
+    return [sys.executable, str(RUNNER), *args]
+
 
 def stem_options(model_stems):
     """Map a model's stems to selector labels -> --single_stem value.
@@ -281,6 +292,8 @@ class SeparatorApp:
 
     # ---------- CLI check ----------
     def _check_cli(self):
+        if FROZEN:
+            return  # engine is embedded in the bundle
         if not CLI.exists():
             self._log(f"ERROR: Separation engine not found at {CLI}\n\n"
                       "Run setup.sh from the project folder, or install it manually:\n"
@@ -374,11 +387,11 @@ class SeparatorApp:
                 data = json.loads(INDEX_CACHE.read_text())
             except Exception:
                 data = None
-        if data is None and CLI.exists():
+        if data is None and (FROZEN or CLI.exists()):
             try:
                 out = subprocess.run(
-                    [str(CLI), "--list_models", "--list_format", "json",
-                     "--log_level", "error", "--model_file_dir", str(MODEL_DIR)],
+                    engine_cmd(["--list_models", "--list_format", "json",
+                                "--log_level", "error", "--model_file_dir", str(MODEL_DIR)]),
                     capture_output=True, text=True, timeout=120,
                 )
                 raw = out.stdout
@@ -547,12 +560,12 @@ class SeparatorApp:
             outdir = str(first if first.is_dir() else first.parent)
         self._last_outdir = outdir
 
-        cmd = [sys.executable, str(RUNNER)] + inputs + [
+        cmd = engine_cmd(inputs + [
             "-m", model,
             "--output_format", self.format_var.get(),
             "--output_dir", outdir,
             "--model_file_dir", str(MODEL_DIR),
-        ]
+        ])
         stem = self.stem_map.get(self.stem_var.get())
         if stem:
             cmd += ["--single_stem", stem]

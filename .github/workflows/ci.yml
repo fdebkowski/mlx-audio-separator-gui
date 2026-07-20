@@ -14,6 +14,6 @@ jobs:
         with:
           python-version: "3.13"
       - name: Compile Python sources
-        run: python -m py_compile app.py runner.py
+        run: python -m py_compile app.py runner.py main_bundle.py bundle_fix_record.py
       - name: Syntax-check shell scripts
-        run: bash -n build.sh setup.sh
+        run: bash -n build.sh setup.sh build_bundle.sh
