@@ -14,8 +14,22 @@ still runnable as a script for the run-from-source path (app.py shells out to
 """
 import os
 import sys
+from pathlib import Path
 
 _SUPPORTED = {"auto", "float32", "pcm16"}
+
+
+def _bundled_ffmpeg_dir():
+    """Directory of the ffmpeg/ffprobe the .app ships, or None when unbundled.
+
+    build_bundle.sh embeds static arm64 ffmpeg/ffprobe in
+    Contents/Resources/ffmpeg. In the frozen app sys.executable is
+    Contents/MacOS/<exe>, so the pair sits one level up under Resources.
+    """
+    if not getattr(sys, "frozen", False):
+        return None
+    d = Path(sys.executable).resolve().parent.parent / "Resources" / "ffmpeg"
+    return d if (d / "ffmpeg").exists() else None
 
 
 def _fix_path():
@@ -27,6 +41,11 @@ def _fix_path():
     for p in ("/usr/local/bin", "/opt/homebrew/bin"):
         if p not in parts:
             parts.insert(0, p)
+    # The self-contained bundle carries its own ffmpeg; prefer it over any
+    # system copy so the app works with no Homebrew install at all.
+    bundled = _bundled_ffmpeg_dir()
+    if bundled is not None:
+        parts.insert(0, str(bundled))
     os.environ["PATH"] = os.pathsep.join(parts)
 
 

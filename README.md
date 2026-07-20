@@ -33,13 +33,12 @@ upload your music. This app does the same job on your own Mac:
 ## Requirements
 
 - **Apple Silicon Mac (M1 or newer), macOS 13+** — MLX runs on Apple GPUs only.
-- **[Homebrew](https://brew.sh) `ffmpeg`** *(recommended)* — needed for MP3/M4A
-  input; without it you can still load and export WAV/FLAC. Install with
-  `brew install ffmpeg`.
 
-That's all you need for the downloadable app. Building from source additionally
-needs [Python 3.13 from python.org](https://www.python.org/downloads/) (it
-bundles the Tcl/Tk toolkit).
+The downloadable app is fully self-contained — Python, the MLX engine, and
+`ffmpeg` are all bundled, so there's nothing else to install. Building from
+source instead needs [Python 3.13 from python.org](https://www.python.org/downloads/)
+(it bundles the Tcl/Tk toolkit) plus [Homebrew](https://brew.sh) `ffmpeg`
+(`brew install ffmpeg`) for MP3/M4A input.
 
 ## Install
 
@@ -48,9 +47,9 @@ bundles the Tcl/Tk toolkit).
 1. Grab **MLX-Audio-Separator-*-macos-arm64.zip** from the
    [latest release](https://github.com/fdebkowski/mlx-audio-separator-gui/releases/latest).
 2. Unzip it and drag **MLX Audio Separator.app** to your `/Applications` folder.
-3. The app is self-contained (Python and the MLX engine are bundled) but signed
-   ad-hoc, so on first launch macOS Gatekeeper blocks it. Clear the download
-   quarantine once, from Terminal:
+3. The app is self-contained (Python, the MLX engine, and ffmpeg are bundled)
+   but signed ad-hoc, so on first launch macOS Gatekeeper blocks it. Clear the
+   download quarantine once, from Terminal:
 
    ```bash
    xattr -dr com.apple.quarantine "/Applications/MLX Audio Separator.app"
@@ -98,7 +97,7 @@ Good to know:
 | Symptom | Fix |
 | --- | --- |
 | "Separation engine missing" on launch | Run `./setup.sh` again — the venv at `~/.venvs/mlx-audio-separator` is missing or broken |
-| MP3/M4A files fail to load or convert | `brew install ffmpeg` |
+| MP3/M4A files fail to load or convert (source builds only) | `brew install ffmpeg` — the downloadable app already bundles it |
 | First run stuck on "Downloading model…" | It's fetching the model weights — watch **Show Details** for progress |
 | "App can't be opened" warning | Right-click the app → **Open** (ad-hoc signature, see above) |
 | Empty model list | Click **Refresh list**; the first fetch needs an internet connection |
@@ -111,11 +110,11 @@ dependencies of its own, all separation delegated to the CLI.
 | File | Role |
 | --- | --- |
 | `app.py` | The whole GUI — a thin Tkinter driver that shells out to the engine and streams its output into the log/progress UI |
-| `runner.py` | Engine shim (`main()`): fixes `PATH` for Finder-launched apps (so `ffmpeg` resolves) and patches `mlx_audio_io.save` to tolerate 24/32-bit sources |
+| `runner.py` | Engine shim (`main()`): puts the bundled (or Homebrew) `ffmpeg` on `PATH` for Finder-launched apps and patches `mlx_audio_io.save` to tolerate 24/32-bit sources |
 | `main_bundle.py` | PyInstaller entry point; one frozen binary runs as the GUI or, with `--separator-runner`, as the engine the GUI subprocesses |
 | `setup.sh` | Source install: venv + engine + `build.sh` |
 | `build.sh` | Builds the lightweight `.app` that runs on your Python (used by `setup.sh`) |
-| `build_bundle.sh` | Builds the self-contained `.app` with PyInstaller (bundles Python + engine) and zips it for release |
+| `build_bundle.sh` | Builds the self-contained `.app` with PyInstaller (bundles Python + engine + ffmpeg) and zips it for release |
 | `bundle_fix_record.py` | Post-build fix: recomputes mlx_audio_io's dist-info RECORD hash, which PyInstaller invalidates by rewriting the binary |
 | `make_icon.swift` | Draws the app icon (gradient squircle + equalizer bars) with AppKit |
 
@@ -152,4 +151,8 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 [MIT](LICENSE). The separation models are downloaded from their authors'
-releases and keep whatever license their authors chose.
+releases and keep whatever license their authors chose. The downloadable app
+bundles static `ffmpeg`/`ffprobe` binaries from
+[eugeneware/ffmpeg-static](https://github.com/eugeneware/ffmpeg-static), which
+are licensed under the GPL v3; the license text and a written offer for the
+corresponding source ship inside the app at `Contents/Resources/ffmpeg/`.

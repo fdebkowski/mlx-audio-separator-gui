@@ -14,9 +14,17 @@ VENV="$HOME/.venvs/mlx-audio-separator"
 PY="$VENV/bin/python"
 PYI="$VENV/bin/pyinstaller"
 BUNDLE_ID="com.rewon.mlxaudioseparator"
-VERSION="1.1.0"
+VERSION="1.2.0"
 WORK="$HERE/bundle_work"
 DIST="$HERE/dist"
+
+# Static arm64 ffmpeg/ffprobe embedded so the app needs no Homebrew install.
+# Pinned to a release of eugeneware/ffmpeg-static and verified by sha256.
+FFMPEG_TAG="b6.1.1"
+FFMPEG_BASE="https://github.com/eugeneware/ffmpeg-static/releases/download/$FFMPEG_TAG"
+FFMPEG_SHA256="a90e3db6a3fd35f6074b013f948b1aa45b31c6375489d39e572bea3f18336584"
+FFPROBE_SHA256="bb2db6f5d8cef919da12fbf592119a987202a8c060a886f3cab091f9cab90b64"
+FF_CACHE="$HERE/.cache/ffmpeg"   # persists across builds (WORK is wiped each run)
 
 if [[ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" != "1" ]]; then
   echo "ERROR: The bundle must be built on Apple Silicon (MLX is arm64-only)." >&2
@@ -57,6 +65,39 @@ arch -arm64 "$PYI" \
   "$HERE/main_bundle.py"
 
 APP="$DIST/$APP_NAME.app"
+
+echo "==> Fetch static ffmpeg/ffprobe (arm64, cached in .cache/ffmpeg)"
+mkdir -p "$FF_CACHE"
+fetch_verify() {  # url dest expected_sha
+  local url="$1" dest="$2" sha="$3"
+  if [[ ! -f "$dest" ]] || [[ "$(shasum -a 256 "$dest" | cut -d' ' -f1)" != "$sha" ]]; then
+    echo "   downloading $(basename "$dest")…"
+    curl -fL --retry 3 -o "$dest" "$url"
+  fi
+  local got; got="$(shasum -a 256 "$dest" | cut -d' ' -f1)"
+  [[ "$got" == "$sha" ]] || { echo "ERROR: checksum mismatch for $dest ($got != $sha)" >&2; exit 1; }
+}
+fetch_verify "$FFMPEG_BASE/ffmpeg-darwin-arm64"  "$FF_CACHE/ffmpeg"  "$FFMPEG_SHA256"
+fetch_verify "$FFMPEG_BASE/ffprobe-darwin-arm64" "$FF_CACHE/ffprobe" "$FFPROBE_SHA256"
+[[ -f "$FF_CACHE/LICENSE" ]] || curl -fL --retry 3 -o "$FF_CACHE/LICENSE" "$FFMPEG_BASE/darwin-arm64.LICENSE"
+chmod +x "$FF_CACHE/ffmpeg" "$FF_CACHE/ffprobe"
+
+echo "==> Embed ffmpeg in the app (Contents/Resources/ffmpeg)"
+FFDIR="$APP/Contents/Resources/ffmpeg"
+mkdir -p "$FFDIR"
+cp "$FF_CACHE/ffmpeg" "$FF_CACHE/ffprobe" "$FF_CACHE/LICENSE" "$FFDIR/"
+# GPL compliance: ship the license and a written offer for the corresponding source.
+cat > "$FFDIR/README.txt" <<EOF
+This app bundles static ffmpeg and ffprobe binaries (arm64) used only to decode
+and encode audio. They are FFmpeg $FFMPEG_TAG from
+  $FFMPEG_BASE
+built with --enable-gpl --enable-version3, so they are licensed under the GNU
+GPL v3. The full license text is in the LICENSE file next to this note.
+
+The corresponding source for these binaries is FFmpeg, available at
+https://ffmpeg.org and https://git.ffmpeg.org/ffmpeg.git . The prebuilt binaries
+and their build recipe come from https://github.com/eugeneware/ffmpeg-static .
+EOF
 
 echo "==> Patch Info.plist (version + minimum system)"
 PLIST="$APP/Contents/Info.plist"
