@@ -1,0 +1,82 @@
+/* Hallmark · design tokens — MLX Audio Separator landing
+ * theme: custom (atmospheric) · anchored on the app icon's violet→magenta gradient
+ * axes: dark / geometric-sans / cool (violet ~300°)
+ * Every colour/font/space value on the page references a token from this file.
+ */
+
+:root {
+  /* ---- Colour · dark canvas, violet-anchored (hue ~300), magenta partner (~342) ---- */
+  --color-paper:          oklch(14% 0.018 300);  /* near-black, faint violet */
+  --color-paper-2:        oklch(18% 0.022 300);  /* elevation +1 (cards)      */
+  --color-paper-3:        oklch(23% 0.026 300);  /* elevation +2 (panels)     */
+
+  --color-ink:            oklch(96% 0.012 300);  /* primary text              */
+  --color-ink-2:          oklch(83% 0.014 300);  /* secondary text            */
+
+  --color-rule:           oklch(31% 0.022 300);  /* dividers                  */
+  --color-rule-2:         oklch(26% 0.018 300);  /* faint dividers            */
+  --color-muted:          oklch(71% 0.016 300);  /* de-emphasised text        */
+  --color-neutral:        oklch(53% 0.016 300);  /* mid grey                  */
+
+  --color-accent:         oklch(68% 0.19 300);   /* brand violet — links, marks, bloom */
+  --color-accent-2:       oklch(70% 0.20 342);   /* magenta — 2nd bloom, sparing        */
+  --color-accent-strong:  oklch(54% 0.205 300);  /* CTA fill (white text ≥ 4.5:1)       */
+  --color-accent-hover:   oklch(48% 0.20 300);   /* CTA hover — darker, higher contrast */
+  --color-accent-ink:     oklch(99% 0.006 320);  /* text on accent fill                 */
+  --color-focus:          oklch(74% 0.22 300);   /* focus ring                          */
+
+  --color-shadow:         oklch(4% 0.02 300);    /* tight dark shadow base (no glow)    */
+
+  /* ---- Type ---- */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body:    "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:    "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs:      0.75rem;
+  --text-sm:      0.8125rem;
+  --text-base:    1rem;
+  --text-md:      1.1875rem;
+  --text-lg:      1.4375rem;
+  --text-xl:      1.8125rem;
+  --text-2xl:     2.25rem;
+  --text-3xl:     2.875rem;
+  --text-display:   clamp(2.5rem, 4.5vw + 1rem, 4.25rem);
+  --text-display-s: clamp(1.9rem, 3vw + 1rem, 2.9rem);
+
+  /* ---- Space · 4pt scale ---- */
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs:  0.5rem;
+  --space-sm:  0.75rem;
+  --space-md:  1rem;
+  --space-lg:  1.5rem;
+  --space-xl:  2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+  --space-4xl: 9rem;
+
+  --page-gutter: clamp(1.25rem, 5vw, 4rem);
+  --measure: 62ch;
+
+  /* ---- Lines & radii ---- */
+  --rule-hair:   1px;
+  --radius-sm:   0.5rem;
+  --radius-md:   0.875rem;
+  --radius-lg:   1.25rem;
+  --radius-xl:   1.75rem;
+  --radius-pill: 999px;
+
+  /* ---- Motion ---- */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:     cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long:  420ms;
+
+  /* ---- Elevation (z) ---- */
+  --z-base:     1;
+  --z-raised:   10;
+  --z-sticky:   200;
+  --z-nav:      210;
+}

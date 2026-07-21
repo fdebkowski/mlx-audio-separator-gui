@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MLX Audio Separator — split any song into stems on your Mac</title>
+  <meta name="description" content="Free, private, on-device stem separation for Apple Silicon. Split any song into vocals, drums, bass, and instrumentals with 160+ community models — your music never leaves your Mac.">
+  <meta name="theme-color" content="#141019">
+  <link rel="canonical" href="https://fdebkowski.github.io/mlx-audio-separator-gui/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MLX Audio Separator">
+  <meta property="og:description" content="Split any song into vocals, instrumentals, and stems — free, private, and fast on Apple Silicon.">
+  <meta property="og:url" content="https://fdebkowski.github.io/mlx-audio-separator-gui/">
+  <meta property="og:image" content="https://fdebkowski.github.io/mlx-audio-separator-gui/screenshot.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+
+  <nav class="nav" aria-label="Primary">
+    <a class="nav__brand" href="#top">
+      <img src="icon.png" alt="" width="22" height="22">
+      MLX Audio Separator
+    </a>
+    <a class="nav__link" href="#how">How it works</a>
+    <a class="nav__link" href="#models">Models</a>
+    <a class="btn btn--primary"
+       href="https://github.com/fdebkowski/mlx-audio-separator-gui/releases/latest"
+       target="_blank" rel="noopener">Download</a>
+  </nav>
+
+  <main id="top">
+
+    <header class="hero wrap reveal" style="--i:0">
+      <img class="hero__mark" src="icon.png" alt="MLX Audio Separator app icon"
+           width="76" height="76" fetchpriority="high">
+      <h1 class="hero__title">Split any song into <span class="grad">stems</span>, right on your Mac.</h1>
+      <p class="hero__sub">
+        Vocals, drums, bass, instrumentals — separated on your Apple&nbsp;Silicon GPU.
+        Free, private, and fast. Your music never leaves your computer.
+      </p>
+      <div class="hero__actions">
+        <a class="btn btn--primary"
+           href="https://github.com/fdebkowski/mlx-audio-separator-gui/releases/latest"
+           target="_blank" rel="noopener">Download for Apple Silicon</a>
+        <a class="tlink"
+           href="https://github.com/fdebkowski/mlx-audio-separator-gui"
+           target="_blank" rel="noopener">View the source ↗</a>
+      </div>
+      <p class="hero__meta">
+        <b>Free</b> · MIT · macOS 13+ · Apple&nbsp;Silicon (M1 or newer)
+      </p>
+    </header>
+
+    <section class="section showcase" id="how" aria-labelledby="how-title">
+      <div class="wrap showcase__grid">
+        <figure class="shot reveal" style="--i:1">
+          <img src="screenshot.png"
+               alt="The MLX Audio Separator window: a list of added songs, a searchable table of separation models ranked by quality, and output format controls."
+               width="1834" height="1364" loading="lazy">
+          <figcaption>The whole app — one window on macOS.</figcaption>
+        </figure>
+        <div class="showcase__head reveal" style="--i:2">
+          <h2 id="how-title">No projects. No timelines.<br>Just add, pick, separate.</h2>
+          <ol class="steps">
+            <li>
+              <span class="num" aria-hidden="true">1</span>
+              <div>
+                <h3>Add your music</h3>
+                <p>Drop in single files or a whole folder — FLAC, WAV, MP3, and M4A all work.</p>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">2</span>
+              <div>
+                <h3>Pick a model</h3>
+                <p>Start with the ★ recommended all-rounder, or sort 160+ models by measured quality.</p>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">3</span>
+              <div>
+                <h3>Choose &amp; separate</h3>
+                <p>All stems or just vocals; save as FLAC, WAV, or MP3 — then press Separate.</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="section why" id="why" aria-labelledby="why-title">
+      <div class="wrap">
+        <div class="why__head reveal" style="--i:0">
+          <h2 id="why-title">The same job as the paid sites — on your own machine.</h2>
+          <p class="lead">Online splitters charge per song and make you upload your music. This does the
+            work locally, for free, at Apple&nbsp;Silicon speed.</p>
+        </div>
+        <div class="why__grid">
+          <div class="why__item reveal" style="--i:1">
+            <h3>Private by default</h3>
+            <p>Your audio never leaves your Mac. <span class="k">No uploads, no account, nothing phoned home</span> — processing runs on your GPU.</p>
+          </div>
+          <div class="why__item reveal" style="--i:2">
+            <h3>Free and open source</h3>
+            <p>No per-song fees, no subscription. The whole app is <span class="k">MIT-licensed</span> and the engine is open too.</p>
+          </div>
+          <div class="why__item reveal" style="--i:3">
+            <h3>Fast on Apple Silicon</h3>
+            <p>A 3–4&nbsp;minute track separates in <span class="k">well under a minute</span> on an M-series Mac, once the model is downloaded.</p>
+          </div>
+          <div class="why__item reveal" style="--i:4">
+            <h3>160+ community models</h3>
+            <p>The Mel-Band RoFormer, BS-RoFormer, and MDX23C models the <span class="k">stem-separation scene actually uses</span> — ranked by quality.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section models" id="models" aria-labelledby="models-title">
+      <div class="wrap">
+        <div class="models__head reveal" style="--i:0">
+          <h2 id="models-title">160+ models, ranked by quality.</h2>
+          <p class="lead">Quality is scored as <b>SDR</b> — signal-to-distortion ratio; higher means a
+            cleaner split. Pick the ★ recommended all-rounder, or search the full catalog by stem and
+            score. Models download once, on first use.</p>
+        </div>
+        <div class="specs reveal" style="--i:1">
+          <div class="spec spec--star">
+            <div class="spec__name">MelBand RoFormer · INSTV8
+              <small>by Gabox — vocals + instrumental</small></div>
+            <div class="spec__sdr"><span class="tag-star">★ recommended</span></div>
+          </div>
+          <div class="spec">
+            <div class="spec__name">BS RoFormer · Vocals
+              <small>by Gabox — vocals + instrumental</small></div>
+            <div class="spec__sdr"><span>SDR</span> 17.2</div>
+          </div>
+          <div class="spec">
+            <div class="spec__name">MelBand RoFormer · Karaoke
+              <small>by Gabox — vocals + instrumental</small></div>
+            <div class="spec__sdr"><span>SDR</span> 16.4</div>
+          </div>
+          <div class="spec">
+            <div class="spec__name">MelBand RoFormer Kim · InstVoc Duality
+              <small>by Unwa — vocals + instrumental</small></div>
+            <div class="spec__sdr"><span>SDR</span> 16.1</div>
+          </div>
+          <div class="spec">
+            <div class="spec__name">MDX23C · InstVoc HQ 2
+              <small>VIP — vocals + instrumental</small></div>
+            <div class="spec__sdr"><span>SDR</span> 15.9</div>
+          </div>
+        </div>
+        <p class="specs__foot reveal" style="--i:2">…and 160 more in the app — drums, bass, guitar,
+          piano, de-reverb and more. Hit <b>Refresh list</b> for the latest community releases.</p>
+      </div>
+    </section>
+
+    <section class="section req" id="requirements" aria-labelledby="req-title">
+      <div class="wrap req__grid">
+        <div class="reveal" style="--i:0">
+          <h2 id="req-title">Runs on your Mac. Nothing to install.</h2>
+          <p>You need an <span class="k">Apple&nbsp;Silicon Mac (M1 or newer)</span> on
+            <span class="k">macOS&nbsp;13 or later</span> — MLX runs on the Apple GPU, so Intel Macs
+            aren’t supported.</p>
+          <p>The download is fully self-contained: Python, the MLX engine, and ffmpeg are all bundled.
+            Drag the app to Applications and open it — there’s nothing else to set up.</p>
+        </div>
+        <div class="gate reveal" style="--i:1">
+          <p class="gate__label">The app is open source and signed ad-hoc, so macOS Gatekeeper blocks it
+            on first launch. Clear the download quarantine once in Terminal, then open it normally:</p>
+          <div class="code">
+            <pre id="xattr">xattr -dr com.apple.quarantine "/Applications/MLX Audio Separator.app"</pre>
+            <button class="copy" type="button" data-copy="#xattr" aria-label="Copy the command">Copy</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section finale wrap" aria-labelledby="finale-title">
+      <h2 id="finale-title" class="reveal" style="--i:0">Split your first track tonight.</h2>
+      <p class="reveal" style="--i:1">Free, private, and open source. One self-contained download for
+        Apple&nbsp;Silicon — nothing else to install.</p>
+      <div class="finale__actions reveal" style="--i:2">
+        <a class="btn btn--primary"
+           href="https://github.com/fdebkowski/mlx-audio-separator-gui/releases/latest"
+           target="_blank" rel="noopener">Download for Apple Silicon</a>
+        <a class="tlink"
+           href="https://github.com/fdebkowski/mlx-audio-separator-gui#install"
+           target="_blank" rel="noopener">Build from source ↗</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    <div class="foot__inner">
+      <p class="foot__line">Your music, split on your own machine.</p>
+      <div class="foot__meta">
+        <a class="foot__brand" href="#top">
+          <img src="icon.png" alt="" width="22" height="22">
+          MLX Audio Separator
+        </a>
+        <nav class="foot__links" aria-label="Footer">
+          <a class="foot__link" href="https://github.com/fdebkowski/mlx-audio-separator-gui" target="_blank" rel="noopener">GitHub</a>
+          <a class="foot__link" href="https://github.com/fdebkowski/mlx-audio-separator-gui/releases" target="_blank" rel="noopener">Releases</a>
+          <a class="foot__link" href="https://github.com/fdebkowski/mlx-audio-separator-gui/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+          <a class="foot__link" href="https://github.com/fdebkowski/mlx-audio-separator-gui#credits" target="_blank" rel="noopener">Credits</a>
+        </nav>
+        <span class="foot__copy">© 2026 · MIT · engine by ssmall256, on Apple MLX</span>
+      </div>
+    </div>
+  </footer>
+
+  <aside class="dockbar" aria-label="Download">
+    <span class="dockbar__note"><b>Free &amp; private.</b> Runs on Apple&nbsp;Silicon.</span>
+    <a class="btn btn--primary"
+       href="https://github.com/fdebkowski/mlx-audio-separator-gui/releases/latest"
+       target="_blank" rel="noopener">Download →</a>
+  </aside>
+
+  <script>
+    (function () {
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      // One orchestrated reveal on entry — never re-fires.
+      var revealables = document.querySelectorAll(".reveal");
+      if (reduce || !("IntersectionObserver" in window)) {
+        revealables.forEach(function (el) { el.classList.add("is-in"); });
+      } else {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) { e.target.classList.add("is-in"); io.unobserve(e.target); }
+          });
+        }, { rootMargin: "0px 0px -12% 0px", threshold: 0.05 });
+        revealables.forEach(function (el) { io.observe(el); });
+      }
+
+      // Sticky download bar — appears once the hero scrolls out of view.
+      var hero = document.querySelector(".hero");
+      var dock = document.querySelector(".dockbar");
+      if (hero && dock && "IntersectionObserver" in window) {
+        new IntersectionObserver(function (entries) {
+          dock.classList.toggle("is-visible", !entries[0].isIntersecting);
+        }, { threshold: 0 }).observe(hero);
+      }
+
+      // Copy-to-clipboard — instant label swap, no toast.
+      document.querySelectorAll(".copy").forEach(function (btn) {
+        var label = btn.textContent;
+        btn.addEventListener("click", function () {
+          var src = document.querySelector(btn.dataset.copy);
+          if (!src) return;
+          navigator.clipboard.writeText(src.textContent.trim()).then(function () {
+            btn.dataset.state = "copied";
+            btn.textContent = "Copied ✓";
+            setTimeout(function () { delete btn.dataset.state; btn.textContent = label; }, 2500);
+          });
+        });
+      });
+    })();
+  </script>
+
+</body>
+</html>
