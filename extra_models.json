@@ -7,7 +7,8 @@
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_leap_voc_conf.yaml"
     ],
     "stems": ["vocals", "other"],
-    "target_stem": "vocals"
+    "target_stem": "vocals",
+    "scores": {"vocals": {"SDR": 11.7398}}
   },
   "Roformer Model: BS Roformer | Leap Instrumental by unwa": {
     "filename": "bs_roformer_leap_inst.ckpt",
@@ -37,7 +38,8 @@
       "https://huggingface.co/becruily/mel-band-roformer-deux/resolve/main/config_deux_becruily.yaml"
     ],
     "stems": ["vocals", "instrumental"],
-    "target_stem": null
+    "target_stem": null,
+    "scores": {"vocals": {"SDR": 11.3695}, "instrumental": {"SDR": 17.5466}}
   },
   "Roformer Model: MelBand Roformer | Guitar by becruily": {
     "filename": "becruily_guitar.ckpt",
@@ -97,7 +99,8 @@
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/vocals/v7.yaml"
     ],
     "stems": ["vocals", "instrumental"],
-    "target_stem": "vocals"
+    "target_stem": "vocals",
+    "scores": {"vocals": {"SDR": 10.9634}}
   },
   "Roformer Model: MelBand Roformer | 4-Stem Large by Aname": {
     "filename": "mel_band_roformer_4stems_large_ver1.ckpt",
@@ -107,7 +110,9 @@
       "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/config_large.yaml"
     ],
     "stems": ["drums", "bass", "other", "vocals"],
-    "target_stem": null
+    "target_stem": null,
+    "scores": {"drums": {"SDR": 9.3964}, "bass": {"SDR": 9.7225},
+               "other": {"SDR": 5.1131}, "vocals": {"SDR": 8.6491}}
   },
   "Roformer Model: MelBand Roformer | 4-Stem XL by Aname": {
     "filename": "mel_band_roformer_4stems_xl_ver1.ckpt",
@@ -117,6 +122,8 @@
       "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/config_xl.yaml"
     ],
     "stems": ["drums", "bass", "other", "vocals"],
-    "target_stem": null
+    "target_stem": null,
+    "scores": {"drums": {"SDR": 9.3651}, "bass": {"SDR": 9.8276},
+               "other": {"SDR": 5.3073}, "vocals": {"SDR": 8.5684}}
   }
 }

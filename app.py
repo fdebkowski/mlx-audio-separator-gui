@@ -31,7 +31,7 @@ GITHUB_URL = "https://github.com/fdebkowski/mlx-audio-separator-gui"
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
 # Bump when the curated extra_models.json changes so existing installs drop
 # their cached model index and pick up the additions.
-MODELS_REV = 2
+MODELS_REV = 3
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
 FORMATS = ["FLAC", "WAV", "MP3"]
 MAX_LOG_LINES = 5000  # cap the log widget so long/batch runs don't grow memory without bound
