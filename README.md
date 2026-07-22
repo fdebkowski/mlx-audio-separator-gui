@@ -32,7 +32,7 @@ upload your music. This app does the same job on your own Mac:
 
 ## Requirements
 
-- **Apple Silicon Mac (M1 or newer), macOS 13+** — MLX runs on Apple GPUs only.
+- **Apple Silicon Mac (M1 or newer), macOS 15 (Sequoia) or later** — MLX runs on Apple GPUs only.
 
 The downloadable app is fully self-contained — Python, the MLX engine, and
 `ffmpeg` are all bundled, so there's nothing else to install. Building from
