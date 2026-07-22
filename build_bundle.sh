@@ -105,8 +105,12 @@ PLIST="$APP/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $VERSION" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$PLIST" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $VERSION" "$PLIST"
-/usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 12.0" "$PLIST" 2>/dev/null || \
-  /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 12.0" "$PLIST"
+# MLX 0.31.2 (and mlx-audio-io, which pins it) ships macOS-15-only wheels, so
+# the bundled engine dylibs are built minos 15.0. Declaring the true minimum
+# makes macOS refuse launch on older systems with a clear dialog instead of the
+# app opening and crashing the moment it loads a model.
+/usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 15.0" "$PLIST" 2>/dev/null || \
+  /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 15.0" "$PLIST"
 /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.music" "$PLIST" 2>/dev/null || true
 
 echo "==> Ad-hoc codesign (deep: finalizes every nested binary's signature)"
