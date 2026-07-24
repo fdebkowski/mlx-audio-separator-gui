@@ -53,6 +53,17 @@ PROCESS_FAIL_MARKER = "Failed to process file"
 # seconds long — the Metal buffer size scales with chunk length.
 RETRY_CHUNK_SECONDS = 30
 
+# --- Palette ported from the landing page (docs/tokens.css) ---
+# Dark violet canvas + violet→magenta accent; the OKLCH tokens converted to hex
+# so Tk (which has no OKLCH) can consume them.
+PAPER, PAPER2, PAPER3 = "#0A080F", "#130F1A", "#1F1A27"
+INK, INK2 = "#F3F0F9", "#C8C5CF"
+RULE, RULE2 = "#322E3A", "#25222C"
+MUTED, NEUTRAL = "#A39FAA", "#6D6A74"
+ACCENT, ACCENT2 = "#AC77FA", "#ED62C1"
+ACCENT_STRONG, ACCENT_HOVER = "#8445D1", "#7233BB"
+ACCENT_INK, FOCUS = "#FEFAFE", "#C282FF"
+
 # In the packaged .app the engine is embedded and sys.executable is the bundle
 # itself; from source it lives in the venv and we drive it through runner.py.
 FROZEN = getattr(sys, "frozen", False)
@@ -219,20 +230,101 @@ class SeparatorApp:
         self.root.after(1500, lambda: self._check_updates(manual=False))
 
     # ---------- UI ----------
-    def _sys_color(self, name, fallback):
-        """Use a macOS dynamic system color when available (adapts to dark mode)."""
+    def _setup_theme(self):
+        """Port the landing-page look (dark violet canvas, violet→magenta accent)
+        onto Tk. macOS 'aqua' can't recolour its native buttons/fields, so drive
+        everything through the fully themeable 'clam' engine instead."""
+        style = ttk.Style(self.root)
         try:
-            self.root.winfo_rgb(name)
-            return name
+            style.theme_use("clam")
         except tk.TclError:
-            return fallback
+            pass
+
+        base = tkfont.nametofont("TkDefaultFont")
+        self.base_size = base.cget("size") or 13
+        avail = set(tkfont.families(self.root))
+        pick = lambda names, fb: next((n for n in names if n in avail), fb)
+        self.body_family = pick(["Geist", "SF Pro Text"], base.cget("family"))
+        self.display_family = pick(["Space Grotesk", "Geist"], self.body_family)
+        self.mono_family = pick(["Geist Mono", "SF Mono", "JetBrains Mono"], "Menlo")
+        rowh = self.base_size + 14
+
+        self.root.configure(bg=PAPER)
+        self.root.option_add("*TCombobox*Listbox.background", PAPER2)
+        self.root.option_add("*TCombobox*Listbox.foreground", INK)
+        self.root.option_add("*TCombobox*Listbox.selectBackground", ACCENT_STRONG)
+        self.root.option_add("*TCombobox*Listbox.selectForeground", ACCENT_INK)
+
+        style.configure(".", background=PAPER, foreground=INK,
+                        fieldbackground=PAPER2, bordercolor=RULE,
+                        lightcolor=PAPER, darkcolor=PAPER,
+                        insertcolor=INK, focuscolor=FOCUS,
+                        font=(self.body_family, self.base_size))
+        style.configure("TFrame", background=PAPER)
+        style.configure("TLabel", background=PAPER, foreground=INK)
+        style.configure("TSeparator", background=RULE)
+
+        style.configure("TButton", background=PAPER3, foreground=INK,
+                        bordercolor=RULE, relief="flat", padding=(12, 6))
+        style.map("TButton",
+                  background=[("pressed", RULE), ("active", RULE2),
+                              ("disabled", PAPER2)],
+                  foreground=[("disabled", NEUTRAL)],
+                  bordercolor=[("focus", ACCENT)])
+
+        # The primary action (Separate) carries the accent fill from the LP CTA.
+        style.configure("Accent.TButton", background=ACCENT_STRONG,
+                        foreground=ACCENT_INK, bordercolor=ACCENT_STRONG,
+                        padding=(14, 6))
+        style.map("Accent.TButton",
+                  background=[("pressed", ACCENT_HOVER), ("active", ACCENT_HOVER),
+                              ("disabled", PAPER3)],
+                  foreground=[("disabled", NEUTRAL)],
+                  bordercolor=[("disabled", RULE)])
+
+        for w in ("TEntry", "TCombobox"):
+            style.configure(w, fieldbackground=PAPER2, foreground=INK,
+                            bordercolor=RULE, lightcolor=RULE, darkcolor=RULE,
+                            arrowcolor=MUTED, padding=4)
+            style.map(w, bordercolor=[("focus", ACCENT)],
+                      lightcolor=[("focus", ACCENT)], darkcolor=[("focus", ACCENT)])
+        style.map("TCombobox",
+                  fieldbackground=[("readonly", PAPER2)],
+                  foreground=[("readonly", INK)],
+                  arrowcolor=[("active", INK)])
+
+        for w in ("TCheckbutton", "TRadiobutton"):
+            style.configure(w, background=PAPER, foreground=INK,
+                            indicatorbackground=PAPER2, indicatorforeground=ACCENT)
+            style.map(w, background=[("active", PAPER)],
+                      indicatorbackground=[("pressed", PAPER3), ("active", PAPER2)],
+                      foreground=[("disabled", NEUTRAL)])
+
+        style.configure("Treeview", background=PAPER2, fieldbackground=PAPER2,
+                        foreground=INK, bordercolor=RULE, borderwidth=0,
+                        rowheight=rowh)
+        style.map("Treeview", background=[("selected", ACCENT_STRONG)],
+                  foreground=[("selected", ACCENT_INK)])
+        style.configure("Treeview.Heading", background=PAPER3, foreground=MUTED,
+                        bordercolor=RULE, relief="flat", padding=(8, 5),
+                        font=(self.body_family, max(self.base_size - 1, 10), "bold"))
+        style.map("Treeview.Heading", background=[("active", RULE2)],
+                  foreground=[("active", INK)])
+
+        for w in ("Vertical.TScrollbar", "Horizontal.TScrollbar"):
+            style.configure(w, background=PAPER3, troughcolor=PAPER,
+                            bordercolor=PAPER, arrowcolor=MUTED, relief="flat")
+            style.map(w, background=[("active", RULE)])
+
+        style.configure("TProgressbar", background=ACCENT, troughcolor=PAPER2,
+                        bordercolor=RULE, lightcolor=ACCENT, darkcolor=ACCENT)
 
     def _build_ui(self):
-        base = tkfont.nametofont("TkDefaultFont")
-        self.h_font = base.copy()
-        self.h_font.configure(size=base.cget("size") + 2, weight="bold")
-        self.sub_color = self._sys_color("systemSecondaryLabelColor", "#8a8a8e")
-        self.accent = self._sys_color("systemLinkColor", "#0a5fff")
+        self._setup_theme()
+        self.sub_color = MUTED
+        self.accent = ACCENT
+        self.h_font = tkfont.Font(family=self.display_family,
+                                  size=self.base_size + 3, weight="bold")
 
         self._build_menubar()
 
@@ -250,7 +342,12 @@ class SeparatorApp:
         in_frame.pack(fill="x", pady=(4, 0))
         list_wrap = ttk.Frame(in_frame)
         list_wrap.pack(side="left", fill="both", expand=True)
-        self.files_list = tk.Listbox(list_wrap, height=4, activestyle="none")
+        self.files_list = tk.Listbox(
+            list_wrap, height=4, activestyle="none",
+            bg=PAPER2, fg=INK, selectbackground=ACCENT_STRONG,
+            selectforeground=ACCENT_INK, highlightthickness=1,
+            highlightbackground=RULE, highlightcolor=ACCENT, bd=0,
+            font=(self.body_family, self.base_size))
         files_vs = ttk.Scrollbar(list_wrap, orient="vertical", command=self.files_list.yview)
         self.files_list.configure(yscrollcommand=files_vs.set)
         self.files_list.pack(side="left", fill="both", expand=True)
@@ -343,6 +440,7 @@ class SeparatorApp:
         run = ttk.Frame(main)
         run.pack(fill="x")
         self.run_btn = ttk.Button(run, text="Separate", default="active",
+                                  style="Accent.TButton",
                                   command=self._start, state="disabled")
         self.run_btn.pack(side="left")
         self.cancel_btn = ttk.Button(run, text="Cancel", command=self._cancel, state="disabled")
@@ -361,8 +459,12 @@ class SeparatorApp:
         # -- Log (collapsed by default; opens automatically on errors)
         self.details_visible = False
         self.log_frame = ttk.Frame(main)
-        self.log = scrolledtext.ScrolledText(self.log_frame, height=8, wrap="word",
-                                             state="disabled", font=("Menlo", 11))
+        self.log = scrolledtext.ScrolledText(
+            self.log_frame, height=8, wrap="word", state="disabled",
+            font=(self.mono_family, 11), bg=PAPER2, fg=INK2,
+            insertbackground=INK, selectbackground=ACCENT_STRONG,
+            selectforeground=ACCENT_INK, highlightthickness=1,
+            highlightbackground=RULE, bd=0, padx=8, pady=6)
         self.log.pack(fill="both", expand=True)
 
         self._refresh_inputs_ui()
@@ -1131,10 +1233,6 @@ class SeparatorApp:
 
 def main():
     root = tk.Tk()
-    try:
-        ttk.Style().theme_use("aqua")
-    except tk.TclError:
-        pass
     SeparatorApp(root)
     root.mainloop()
 
