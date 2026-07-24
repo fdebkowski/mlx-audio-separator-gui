@@ -8,7 +8,7 @@ BUILD="$HERE/build"
 APP="$BUILD/$APP_NAME.app"
 VENV_PY="$HOME/.venvs/mlx-audio-separator/bin/python"
 BUNDLE_ID="com.rewon.mlxaudioseparator"
-VERSION="1.2.0"
+VERSION="1.2.1"
 
 echo "==> Clean build dir"
 rm -rf "$BUILD"

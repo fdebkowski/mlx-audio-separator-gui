@@ -33,6 +33,13 @@ AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus",
 FORMATS = ["FLAC", "WAV", "MP3"]
 MAX_LOG_LINES = 5000  # cap the log widget so long/batch runs don't grow memory without bound
 PERCENT_RE = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*%")
+# Scraped from the engine's stdout. The CLI logs per-file errors but still
+# exits 0 with an empty output list, so exit code alone can't be trusted.
+MEM_ERROR_MARKERS = ("[metal::malloc]", "maximum allowed buffer size")
+PROCESS_FAIL_MARKER = "Failed to process file"
+# On a GPU-memory blow-up, retry once splitting the audio into chunks this many
+# seconds long — the Metal buffer size scales with chunk length.
+RETRY_CHUNK_SECONDS = 30
 
 # In the packaged .app the engine is embedded and sys.executable is the bundle
 # itself; from source it lives in the venv and we drive it through runner.py.
@@ -93,6 +100,10 @@ class SeparatorApp:
         self.input_paths = [p for p in sys.argv[1:] if os.path.exists(p)]
         self._cancelled = False
         self._determinate = False  # progress bar switched to determinate mode
+        self._saw_memory_error = False
+        self._saw_process_failure = False
+        self._chunked_retry = False    # current run is an auto-retry with chunking
+        self._base_cmd = None          # command of the in-flight run, for retrying
 
         root.title("MLX Audio Separator")
         root.geometry("920x700")
@@ -570,10 +581,14 @@ class SeparatorApp:
         if stem:
             cmd += ["--single_stem", stem]
 
+        self._base_cmd = list(cmd)
+        self._chunked_retry = False
         self._clear_log()
         self._log("$ " + " ".join(self._quote(c) for c in cmd) + "\n\n")
         self._cancelled = False
         self._determinate = False
+        self._saw_memory_error = False
+        self._saw_process_failure = False
         self.run_btn.configure(state="disabled")
         self.cancel_btn.configure(state="normal")
         self.open_btn.configure(state="disabled")
@@ -638,12 +653,14 @@ class SeparatorApp:
             while True:
                 kind, payload = self.q.get_nowait()
                 if kind == "line":
+                    self._scan_health(payload)
                     self._log(payload)
                     if payload.strip():
                         self.status_var.set(payload.strip()[:120])
                 elif kind == "prog":
                     text = payload.strip()
                     if text:
+                        self._scan_health(text)
                         self.status_var.set(text[:120])
                         self._update_progress(text)
                 elif kind == "models_loaded":
@@ -666,11 +683,42 @@ class SeparatorApp:
                     self.status_var.set("Could not load models.")
                     self._log(f"Model list error: {payload}\n")
                 elif kind == "done":
-                    self._finish(payload)
+                    if (self._saw_memory_error and not self._chunked_retry
+                            and not self._cancelled):
+                        self._retry_with_chunking()
+                    else:
+                        self._finish(payload)
         except queue.Empty:
             pass
         finally:
             self.root.after(80, self._poll_queue)
+
+    def _scan_health(self, text):
+        """Watch engine output for signals the exit code won't tell us about."""
+        if any(marker in text for marker in MEM_ERROR_MARKERS):
+            self._saw_memory_error = True
+        if PROCESS_FAIL_MARKER in text:
+            self._saw_process_failure = True
+
+    def _retry_with_chunking(self):
+        """A run ran out of GPU memory — re-run it once, splitting into chunks."""
+        cmd = list(self._base_cmd)
+        if "--chunk_duration" not in cmd:
+            cmd += ["--chunk_duration", str(RETRY_CHUNK_SECONDS)]
+        self._chunked_retry = True
+        self._saw_memory_error = False
+        self._saw_process_failure = False
+        self._determinate = False
+        self._log(
+            f"\n⚠ Ran out of GPU memory processing the whole file at once. "
+            f"Retrying in {RETRY_CHUNK_SECONDS}s chunks…\n\n"
+        )
+        self._log("$ " + " ".join(self._quote(c) for c in cmd) + "\n\n")
+        self.status_var.set(f"Low on memory — retrying in {RETRY_CHUNK_SECONDS}s chunks…")
+        self.progress.stop()
+        self.progress.configure(mode="indeterminate", value=0)
+        self.progress.start(12)
+        threading.Thread(target=self._run_worker, args=(cmd,), daemon=True).start()
 
     def _update_progress(self, text):
         m = PERCENT_RE.search(text)
@@ -695,14 +743,22 @@ class SeparatorApp:
         if cancelled:
             self.status_var.set("Cancelled.")
             self._log("\n■ Cancelled.\n")
-        elif rc == 0:
+        elif rc == 0 and not self._saw_process_failure:
             self.status_var.set("Done ✓  Your stems are ready.")
             self.open_btn.configure(state="normal")
             self._log("\n✓ Separation complete.\n")
             self._notify("Separation complete", "Your stems are ready.")
         else:
-            self.status_var.set(f"Something went wrong (exit {rc}) — see the details below.")
-            self._log(f"\n✗ Failed with exit code {rc}.\n")
+            if self._saw_memory_error:
+                reason = ("Ran out of GPU memory even with chunking — try a shorter "
+                          "file or a Mac with more memory.")
+            elif self._saw_process_failure:
+                reason = ("The engine reported an error and produced no output — "
+                          "see the details below.")
+            else:
+                reason = f"Something went wrong (exit {rc}) — see the details below."
+            self.status_var.set(reason)
+            self._log(f"\n✗ Separation failed — {reason}\n")
             if not self.details_visible:
                 self._toggle_details()
         self._scan_downloaded()

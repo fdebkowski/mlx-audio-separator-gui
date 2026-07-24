@@ -14,7 +14,7 @@ VENV="$HOME/.venvs/mlx-audio-separator"
 PY="$VENV/bin/python"
 PYI="$VENV/bin/pyinstaller"
 BUNDLE_ID="com.rewon.mlxaudioseparator"
-VERSION="1.2.0"
+VERSION="1.2.1"
 WORK="$HERE/bundle_work"
 DIST="$HERE/dist"
 
