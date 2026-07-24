@@ -245,14 +245,24 @@ class SeparatorApp:
         self._sort = None
 
         root.title("MLX Audio Separator")
-        root.geometry("920x700")
-        root.minsize(820, 600)
 
         APP_SUPPORT.mkdir(parents=True, exist_ok=True)
         MODEL_DIR.mkdir(parents=True, exist_ok=True)
         self.settings = self._load_settings()
 
         self._build_ui()
+
+        # The dark-violet theme uses taller rows and larger fonts, so let the
+        # window size itself to the built content instead of a fixed guess —
+        # otherwise the bottom action bar is clipped at launch. Clamp to the
+        # screen so it still fits shorter laptop displays.
+        root.update_idletasks()
+        content_h = root.winfo_reqheight()
+        # Reserve ~72px for the macOS menu bar and window title bar; keeps the
+        # full UI on 1440x900 laptops while still fitting shorter displays.
+        win_h = min(content_h, root.winfo_screenheight() - 72)
+        root.geometry(f"920x{win_h}")
+        root.minsize(820, win_h)
         self._check_cli()
         self._load_models_async()
         self.root.after(80, self._poll_queue)
