@@ -46,6 +46,32 @@ def engine_cmd(args):
     return [sys.executable, str(RUNNER), *args]
 
 
+def tkdnd_dir():
+    """Directory of the vendored tkdnd package (holds pkgIndex.tcl), or None.
+
+    Bundled so users can drag audio onto the window with nothing to install.
+    In the frozen .app the folder is added as data (PyInstaller extracts it to
+    sys._MEIPASS); from source it lives under vendor/ next to this file.
+    """
+    candidates = []
+    if FROZEN:
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(Path(meipass) / "vendor" / "tkdnd")
+        candidates.append(
+            Path(sys.executable).resolve().parent.parent / "Resources" / "vendor" / "tkdnd")
+    candidates.append(Path(__file__).resolve().parent / "vendor" / "tkdnd")
+    for c in candidates:
+        if (c / "pkgIndex.tcl").exists():
+            return c
+    return None
+
+
+def stem_count(model):
+    """How many stems a model outputs (2 for the vocals/instrumental default)."""
+    return len(model.get("stems") or []) or 2
+
+
 def stem_options(model_stems):
     """Map a model's stems to selector labels -> --single_stem value.
 
@@ -93,6 +119,9 @@ class SeparatorApp:
         self.input_paths = [p for p in sys.argv[1:] if os.path.exists(p)]
         self._cancelled = False
         self._determinate = False  # progress bar switched to determinate mode
+        # None = the recommended default order from the worker; otherwise a
+        # (column, reverse) pair driven by clicking the model table headers.
+        self._sort = None
 
         root.title("MLX Audio Separator")
         root.geometry("920x700")
@@ -145,6 +174,7 @@ class SeparatorApp:
             justify="center", fg=self.sub_color, bg=self.files_list.cget("background"),
             bd=0, cursor="pointinghand")
         self.files_hint.bind("<Button-1>", lambda *_: self._add_files())
+        self._dnd_hint = "No music yet.\nDrag audio in, or click to choose files…"
         btns = ttk.Frame(in_frame)
         btns.pack(side="right", fill="y", padx=(8, 0))
         ttk.Button(btns, text="Add Files…", command=self._add_files).pack(fill="x", pady=2)
@@ -175,10 +205,10 @@ class SeparatorApp:
         tree_wrap.pack(fill="both", expand=True)
         self.tree = ttk.Treeview(tree_wrap, columns=cols, show="headings", height=8,
                                  selectmode="browse")
-        self.tree.heading("name", text="Model")
-        self.tree.heading("stems", text="Stems")
-        self.tree.heading("sdr", text="Quality (SDR)")
-        self.tree.heading("disk", text="On disk")
+        self._heading_text = {"name": "Model", "stems": "Stems",
+                              "sdr": "Quality (SDR)", "disk": "On disk"}
+        for c, text in self._heading_text.items():
+            self.tree.heading(c, text=text, command=lambda col=c: self._sort_by(col))
         self.tree.column("name", width=430, anchor="w")
         self.tree.column("stems", width=180, anchor="w")
         self.tree.column("sdr", width=95, anchor="center")
@@ -193,8 +223,10 @@ class SeparatorApp:
         self.tree.bind("<Control-Button-1>", self._show_model_menu)
         ttk.Label(model_frame,
                   text="Models download automatically the first time you use them "
-                       "(right-click a downloaded one to manage it).",
-                  foreground=self.sub_color).pack(anchor="w", pady=(4, 0))
+                       "(right-click a downloaded one to manage it). Click a column to "
+                       "sort — e.g. Stems to find the models that split into the most tracks.",
+                  foreground=self.sub_color, wraplength=780, justify="left").pack(
+                      anchor="w", pady=(4, 0))
 
         # -- Step 3: output
         self._section(main, "3", "Choose what you get", None)
@@ -251,6 +283,7 @@ class SeparatorApp:
         self.log.pack(fill="both", expand=True)
 
         self._refresh_inputs_ui()
+        self._setup_dnd()
 
     def _section(self, parent, num, title, sub):
         row = ttk.Frame(parent)
@@ -351,6 +384,56 @@ class SeparatorApp:
         if d:
             self.outdir_var.set(d)
 
+    # ---------- Drag & drop ----------
+    def _setup_dnd(self):
+        """Let users drag audio files/folders from Finder onto the file list.
+
+        Uses the vendored tkdnd Tcl extension; if it can't load (e.g. an
+        unbundled dev checkout on another arch) the app just runs without it.
+        """
+        d = tkdnd_dir()
+        if d is None:
+            return
+        try:
+            self.root.tk.call("lappend", "auto_path", str(d))
+            self.root.tk.call("package", "require", "tkdnd")
+        except tk.TclError as e:
+            self._log(f"Drag-and-drop unavailable: {e}\n")
+            return
+        on_drop = self.files_list.register(self._on_drop)
+        on_enter = self.files_list.register(lambda *_: self._dnd_highlight(True) or "copy")
+        on_leave = self.files_list.register(lambda *_: self._dnd_highlight(False) or "copy")
+        for w in (self.files_list, self.files_hint):
+            try:
+                self.root.tk.call("tkdnd::drop_target", "register", w._w, "DND_Files")
+                self.root.tk.call("bind", w._w, "<<Drop>>", f"{on_drop} %D")
+                self.root.tk.call("bind", w._w, "<<DropEnter>>", f"{on_enter}")
+                self.root.tk.call("bind", w._w, "<<DropLeave>>", f"{on_leave}")
+            except tk.TclError:
+                pass
+        self.files_hint.configure(text=self._dnd_hint)
+
+    def _dnd_highlight(self, on):
+        try:
+            self.files_list.configure(
+                highlightthickness=2 if on else 0,
+                highlightbackground=self.accent, highlightcolor=self.accent)
+        except tk.TclError:
+            pass
+
+    def _on_drop(self, data):
+        added = 0
+        for p in self.root.tk.splitlist(data):
+            if p in self.input_paths:
+                continue
+            if os.path.isdir(p) or Path(p).suffix.lower() in AUDIO_EXTS:
+                self.input_paths.append(p)
+                added += 1
+        self._dnd_highlight(False)
+        if added:
+            self._refresh_inputs_ui()
+        return "copy"
+
     # ---------- Settings ----------
     def _load_settings(self):
         try:
@@ -434,7 +517,8 @@ class SeparatorApp:
         self.tree.delete(*self.tree.get_children())
         for m in models:
             sdr = f"{m['sdr']:.1f}" if isinstance(m["sdr"], (int, float)) else "—"
-            stems = ", ".join(m["stems"]) or "vocals, instrumental"
+            names = ", ".join(m["stems"]) or "vocals, instrumental"
+            stems = f"{stem_count(m)} · {names}"
             name = m["friendly"]
             if m["filename"] == DEFAULT_MODEL:
                 name += "   ★ recommended"
@@ -458,8 +542,42 @@ class SeparatorApp:
             ]
         if self.downloaded_only_var.get():
             items = [m for m in items if m["filename"] in self.downloaded]
-        self.filtered = items
+        self.filtered = self._sorted(items)
         self._populate_tree(self.filtered)
+
+    def _sorted(self, items):
+        """Order for the table: the recommended default, or a clicked column.
+
+        Sorts are stable, so within a column's ties models keep the incoming
+        recommended/SDR order (e.g. sort by Stems and the best model of each
+        stem count floats to the top of its group)."""
+        if self._sort is None:
+            return list(items)
+        col, reverse = self._sort
+        keys = {
+            "name": lambda m: m["friendly"].lower(),
+            "stems": stem_count,
+            "sdr": sdr_num,
+            "disk": lambda m: m["filename"] in self.downloaded,
+        }
+        return sorted(items, key=keys.get(col, keys["name"]), reverse=reverse)
+
+    def _sort_by(self, col):
+        # First click on a column sorts most-useful-first: names A→Z, the
+        # numeric/flag columns high→low (most stems, best SDR, downloaded first).
+        if self._sort and self._sort[0] == col:
+            reverse = not self._sort[1]
+        else:
+            reverse = col != "name"
+        self._sort = (col, reverse)
+        self._update_sort_headings()
+        self._apply_filter()
+
+    def _update_sort_headings(self):
+        for c, text in self._heading_text.items():
+            if self._sort and self._sort[0] == c:
+                text += " ▼" if self._sort[1] else " ▲"
+            self.tree.heading(c, text=text)
 
     def _on_model_select(self, _evt=None):
         sel = self.tree.selection()
