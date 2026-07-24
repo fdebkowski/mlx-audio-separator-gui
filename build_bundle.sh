@@ -61,6 +61,7 @@ arch -arm64 "$PYI" \
   --collect-all mlx_audio_io \
   --collect-all mlx_spectro \
   --collect-all certifi \
+  --add-data "$HERE/vendor/tkdnd:vendor/tkdnd" \
   --hidden-import lameenc \
   --hidden-import runner \
   --hidden-import app \

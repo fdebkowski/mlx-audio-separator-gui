@@ -22,9 +22,12 @@ its output the same way — click through a real separation.
 
 ## Ground rules
 
-- **Keep the GUI stdlib-only.** The app deliberately has no runtime
+- **Keep the GUI stdlib-only.** The app deliberately has no runtime *Python*
   dependencies beyond Tkinter and the engine CLI. Open an issue first if you
-  think a dependency is worth it.
+  think a dependency is worth it. The one exception is the native **tkdnd** Tcl
+  extension vendored under `vendor/tkdnd/` (arm64, BSD-style licensed) for
+  drag-and-drop; it's loaded via `package require`, imports nothing on the
+  Python side, and the app runs fine without it if it fails to load.
 - **The GUI stays a thin driver.** Separation logic belongs in the
   [engine](https://github.com/ssmall256/mlx-audio-separator), not here. This
   repo owns UX, process management, and macOS integration.

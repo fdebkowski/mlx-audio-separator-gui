@@ -23,12 +23,18 @@ instrumental of a finished track. Online tools charge per song and make you
 upload your music. This app does the same job on your own Mac:
 
 - **Acapellas, instrumentals, drums, bass…** — pick a model, press Separate.
+  Two-stem vocals/instrumental models sit alongside 4- and 6-stem splitters
+  (vocals · drums · bass · other, plus guitar & piano) and even a per-drum
+  splitter — the *Stems* column shows exactly what each one produces.
 - **Private and free** — your audio never leaves your computer. Processing runs
   on the Apple Silicon GPU via [MLX](https://github.com/ml-explore/mlx).
 - **160+ community models** — the same Mel-Band RoFormer / BS-RoFormer /
-  MDX23C models used by the stem-separation community, ranked by measured
-  quality (SDR). Models download automatically on first use.
-- **Batch friendly** — drop in a whole folder, choose FLAC, WAV, or MP3 output.
+  MDX23C / Demucs models used by the stem-separation community. Click any
+  column to sort — by quality (SDR), or by *Stems* to bring the models that
+  split into the most tracks to the top. Models download automatically on
+  first use.
+- **Batch friendly** — drag songs or whole folders straight in from Finder,
+  and choose FLAC, WAV, or MP3 output.
 
 ## Requirements
 
@@ -72,14 +78,16 @@ reuses your Python install instead of bundling one, so it's much smaller.
 
 ## Using the app
 
-1. **Add your music** — click the list (or *Add Files…* / *Add Folder…*) and
-   pick the songs to split.
+1. **Add your music** — drag songs or folders in from Finder, or click the list
+   (or *Add Files…* / *Add Folder…*) to pick the songs to split.
 2. **Pick a model** — the ★ recommended model is a great instrumental/vocals
-   all-rounder. Higher *Quality (SDR)* usually means a cleaner split; the
-   *Stems* column tells you what each model extracts.
+   all-rounder. Click a column heading to sort — *Quality (SDR)* for the
+   cleanest split, or *Stems* to bring the models that split into the most
+   tracks (like the 4- and 6-stem Demucs models) to the top. The *Stems* column
+   shows how many tracks each model makes and what they are.
 3. **Choose what you get** — output format, all stems or just one (e.g.
-   *Vocals only*), and where to save. Leave *Save to* empty to put the stems
-   next to each song.
+   *Vocals only* or *Drums only*), and where to save. Leave *Save to* empty to
+   put the stems next to each song.
 4. Press **Separate**. Progress shows in the bar; you can **Cancel** anytime,
    and you'll get a notification when the stems are ready.
 
@@ -104,12 +112,15 @@ Good to know:
 
 ## For developers
 
-The GUI is intentionally boring: stdlib-only Python/Tkinter, no runtime
-dependencies of its own, all separation delegated to the CLI.
+The GUI is intentionally boring: stdlib-only Python/Tkinter, no runtime Python
+dependencies of its own, all separation delegated to the CLI. The one native
+addition is a vendored **tkdnd** Tcl extension for drag-and-drop — loaded via
+`package require`, so nothing is imported on the Python side.
 
 | File | Role |
 | --- | --- |
 | `app.py` | The whole GUI — a thin Tkinter driver that shells out to the engine and streams its output into the log/progress UI |
+| `vendor/tkdnd/` | Native drag-and-drop (tkdnd 2.10.1, arm64) so audio can be dragged onto the window; loaded through Tcl, not imported, and the app runs fine without it |
 | `runner.py` | Engine shim (`main()`): puts the bundled (or Homebrew) `ffmpeg` on `PATH` for Finder-launched apps and patches `mlx_audio_io.save` to tolerate 24/32-bit sources |
 | `main_bundle.py` | PyInstaller entry point; one frozen binary runs as the GUI or, with `--separator-runner`, as the engine the GUI subprocesses |
 | `setup.sh` | Source install: venv + engine + `build.sh` |
