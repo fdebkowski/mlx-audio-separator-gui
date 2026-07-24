@@ -14,7 +14,8 @@ VENV="$HOME/.venvs/mlx-audio-separator"
 PY="$VENV/bin/python"
 PYI="$VENV/bin/pyinstaller"
 BUNDLE_ID="com.rewon.mlxaudioseparator"
-VERSION="1.2.1"
+# Single source of truth: APP_VERSION in app.py.
+VERSION="$(grep -m1 '^APP_VERSION' "$HERE/app.py" | sed -E 's/[^"]*"([^"]+)".*/\1/')"
 WORK="$HERE/bundle_work"
 DIST="$HERE/dist"
 
@@ -59,6 +60,7 @@ arch -arm64 "$PYI" \
   --collect-all mlx_audio_separator \
   --collect-all mlx_audio_io \
   --collect-all mlx_spectro \
+  --collect-all certifi \
   --hidden-import lameenc \
   --hidden-import runner \
   --hidden-import app \
