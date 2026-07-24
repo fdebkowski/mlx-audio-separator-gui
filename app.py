@@ -5,13 +5,17 @@ Runs on the dedicated venv Python (python.org 3.13) that ships Tcl/Tk. The GUI
 is a thin driver over the CLI; all separation happens in the venv.
 """
 
+import hashlib
 import json
 import os
 import queue
 import re
+import shutil
 import subprocess
 import sys
 import threading
+import time
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -27,6 +31,14 @@ MODEL_DIR = APP_SUPPORT / "models"
 INDEX_CACHE = APP_SUPPORT / "models_index.json"
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
 GITHUB_URL = "https://github.com/fdebkowski/mlx-audio-separator-gui"
+APP_VERSION = "1.2.1"  # single source of truth; build.sh / build_bundle.sh read this
+# Auto-update checks the repo's "latest release" and, in the packaged .app,
+# downloads the new bundle and swaps it in place. Derived from GITHUB_URL so the
+# repo lives in one spot.
+_REPO = GITHUB_URL.split("github.com/", 1)[-1].strip("/")
+RELEASES_API = f"https://api.github.com/repos/{_REPO}/releases/latest"
+UPDATE_UA = f"MLX-Audio-Separator/{APP_VERSION} (macOS auto-update)"
+UPDATE_CHECK_INTERVAL = 24 * 3600  # auto-check at most once a day
 
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
@@ -86,6 +98,87 @@ def sdr_num(m):
     return m["sdr"] if isinstance(m["sdr"], (int, float)) else float("-inf")
 
 
+class _UpdateCancelled(Exception):
+    """Raised inside the download worker when the user cancels an update."""
+
+
+def parse_version(s):
+    """'v1.12.0' / '1.12' -> (1, 12, 0…). Ignores any pre-release suffix."""
+    m = re.match(r"\d+(?:\.\d+)*", (s or "").strip().lstrip("vV"))
+    return tuple(int(x) for x in m.group(0).split(".")) if m else ()
+
+
+def is_newer_version(candidate, current):
+    a, b = parse_version(candidate), parse_version(current)
+    n = max(len(a), len(b))
+    return a + (0,) * (n - len(a)) > b + (0,) * (n - len(b))
+
+
+def _ssl_context():
+    """TLS context that actually verifies certs.
+
+    The python.org interpreter (and the frozen bundle) ship OpenSSL without a
+    system trust store, so stdlib ssl can't verify certs unless certifi's CA
+    bundle is used. certifi is already present in the venv and embedded in the
+    .app (the engine downloads models over TLS), so use it when importable and
+    fall back to the default context otherwise.
+    """
+    import ssl
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
+def fetch_latest_release():
+    """Query the repo's latest GitHub release, returning the fields we need."""
+    req = urllib.request.Request(RELEASES_API, headers={
+        "Accept": "application/vnd.github+json",
+        "User-Agent": UPDATE_UA,
+        "X-GitHub-Api-Version": "2022-11-28",
+    })
+    with urllib.request.urlopen(req, timeout=15, context=_ssl_context()) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    assets = data.get("assets") or []
+    asset = next((a for a in assets if (a.get("name") or "").endswith("-macos-arm64.zip")), None)
+    if asset is None:
+        asset = next((a for a in assets if (a.get("name") or "").endswith(".zip")), None)
+    tag = data.get("tag_name") or ""
+    return {
+        "version": tag.lstrip("vV"),
+        "html_url": data.get("html_url") or (GITHUB_URL + "/releases/latest"),
+        "asset_url": (asset or {}).get("browser_download_url"),
+        "asset_name": (asset or {}).get("name"),
+        "size": (asset or {}).get("size") or 0,
+        "digest": (asset or {}).get("digest"),
+    }
+
+
+# Detached helper: waits for the running app to quit, swaps its bundle for the
+# freshly downloaded one, then relaunches. Args: <pid> <old_app> <new_app>.
+SWAP_SCRIPT = r"""#!/bin/sh
+PID="$1"; OLD="$2"; NEW="$3"
+i=0
+while kill -0 "$PID" 2>/dev/null; do
+  i=$((i+1)); [ "$i" -ge 150 ] && break; sleep 0.2
+done
+BAK="${OLD}.old-$$"
+if ! /bin/mv "$OLD" "$BAK" 2>/dev/null; then
+  /usr/bin/open -R "$NEW"; exit 1
+fi
+if /bin/mv "$NEW" "$OLD" 2>/dev/null; then
+  /bin/rm -rf "$BAK"
+  /usr/bin/xattr -dr com.apple.quarantine "$OLD" 2>/dev/null
+  /usr/bin/open "$OLD"; exit 0
+fi
+# Swap failed — roll the original back into place.
+/bin/rm -rf "$OLD" 2>/dev/null
+/bin/mv "$BAK" "$OLD" 2>/dev/null
+/usr/bin/open "$OLD"; exit 1
+"""
+
+
 class SeparatorApp:
     def __init__(self, root):
         self.root = root
@@ -104,6 +197,12 @@ class SeparatorApp:
         self._saw_process_failure = False
         self._chunked_retry = False    # current run is an auto-retry with chunking
         self._base_cmd = None          # command of the in-flight run, for retrying
+        self._update_checking = False
+        self._update_cancel = False
+        self._update_downloading = False
+        self._pending_update = None
+        self.update_msg = None
+        self.update_progress = None
 
         root.title("MLX Audio Separator")
         root.geometry("920x700")
@@ -117,6 +216,7 @@ class SeparatorApp:
         self._check_cli()
         self._load_models_async()
         self.root.after(80, self._poll_queue)
+        self.root.after(1500, lambda: self._check_updates(manual=False))
 
     # ---------- UI ----------
     def _sys_color(self, name, fallback):
@@ -135,6 +235,10 @@ class SeparatorApp:
         self.accent = self._sys_color("systemLinkColor", "#0a5fff")
 
         self._build_menubar()
+
+        # Update banner sits above everything; stays empty until an update shows.
+        self.banner_holder = ttk.Frame(self.root)
+        self.banner_holder.pack(side="top", fill="x")
 
         main = ttk.Frame(self.root, padding=(16, 6, 16, 10))
         main.pack(fill="both", expand=True)
@@ -283,6 +387,15 @@ class SeparatorApp:
                           command=lambda: subprocess.run(["open", str(MODEL_DIR)]))
         menubar.add_cascade(label="File", menu=filem)
         helpm = tk.Menu(menubar, tearoff=0, name="help")
+        helpm.add_command(label=f"Version {APP_VERSION}", state="disabled")
+        helpm.add_separator()
+        helpm.add_command(label="Check for Updates…",
+                          command=lambda: self._check_updates(manual=True))
+        self.auto_update_var = tk.BooleanVar(value=self.settings.get("auto_update_check", True))
+        helpm.add_checkbutton(label="Automatically check for updates",
+                              variable=self.auto_update_var,
+                              command=self._toggle_auto_update)
+        helpm.add_separator()
         helpm.add_command(label="MLX Audio Separator on GitHub",
                           command=lambda: webbrowser.open(GITHUB_URL))
         helpm.add_command(label="Report an Issue",
@@ -383,6 +496,188 @@ class SeparatorApp:
     def _save_format(self):
         self.settings["format"] = self.format_var.get()
         self._save_settings()
+
+    # ---------- Updates ----------
+    def _toggle_auto_update(self):
+        self.settings["auto_update_check"] = bool(self.auto_update_var.get())
+        self._save_settings()
+
+    def _check_updates(self, manual):
+        if self._update_checking:
+            if manual:
+                messagebox.showinfo("Check for Updates", "Already checking for updates…")
+            return
+        if not manual:
+            if not self.settings.get("auto_update_check", True):
+                return
+            last = float(self.settings.get("last_update_check", 0) or 0)
+            if time.time() - last < UPDATE_CHECK_INTERVAL:
+                return
+        self._update_checking = True
+        if manual:
+            self.status_var.set("Checking for updates…")
+        threading.Thread(target=self._update_check_worker, args=(manual,), daemon=True).start()
+
+    def _update_check_worker(self, manual):
+        res = {"manual": manual}
+        try:
+            info = fetch_latest_release()
+            res["ok"] = True
+            res["info"] = info
+            res["newer"] = bool(info["version"]) and is_newer_version(info["version"], APP_VERSION)
+        except Exception as e:
+            res["ok"] = False
+            res["error"] = str(e)
+        self.q.put(("update_result", res))
+
+    def _start_update(self):
+        info = self._pending_update
+        if not info:
+            return
+        # From source, or if a release has no downloadable asset, just open the page.
+        if not (FROZEN and info.get("asset_url")):
+            webbrowser.open(info["html_url"])
+            return
+        if self.proc is not None:
+            messagebox.showinfo("Please wait",
+                                "Finish or cancel the current separation before updating.")
+            return
+        size_mb = (info.get("size") or 0) / 1e6
+        detail = f" (~{size_mb:.0f} MB)" if size_mb else ""
+        if not messagebox.askyesno(
+                "Install update",
+                f"Download version {info['version']}{detail} and install it now?\n\n"
+                "The app will replace itself and relaunch."):
+            return
+        self._update_cancel = False
+        self._update_downloading = True
+        self._render_update_downloading()
+        threading.Thread(target=self._update_download_worker, args=(info,), daemon=True).start()
+
+    def _cancel_update(self):
+        self._update_cancel = True
+
+    def _update_download_worker(self, info):
+        staging = APP_SUPPORT / "update-staging"
+        try:
+            shutil.rmtree(staging, ignore_errors=True)
+            staging.mkdir(parents=True, exist_ok=True)
+            zip_path = staging / (info.get("asset_name") or "update.zip")
+            req = urllib.request.Request(info["asset_url"], headers={"User-Agent": UPDATE_UA})
+            h = hashlib.sha256()
+            with urllib.request.urlopen(req, timeout=60, context=_ssl_context()) as r, \
+                    open(zip_path, "wb") as f:
+                total = int(r.headers.get("Content-Length") or info.get("size") or 0)
+                done = last = 0
+                while True:
+                    if self._update_cancel:
+                        raise _UpdateCancelled()
+                    chunk = r.read(262144)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    h.update(chunk)
+                    done += len(chunk)
+                    if done - last >= 1_000_000:
+                        last = done
+                        self.q.put(("update_prog", (done, total)))
+            self.q.put(("update_prog", (done, total)))
+            digest = info.get("digest") or ""
+            if digest.startswith("sha256:") and h.hexdigest() != digest.split(":", 1)[1]:
+                raise RuntimeError("The downloaded update failed its integrity check.")
+            unpack = subprocess.run(["ditto", "-x", "-k", str(zip_path), str(staging)],
+                                    capture_output=True, text=True)
+            if unpack.returncode != 0:
+                raise RuntimeError("Could not unpack the update. " + unpack.stderr.strip())
+            apps = list(staging.glob("*.app")) or list(staging.rglob("*.app"))
+            if not apps:
+                raise RuntimeError("The update package did not contain an app.")
+            new_app = apps[0]
+            subprocess.run(["xattr", "-dr", "com.apple.quarantine", str(new_app)],
+                           capture_output=True)
+            self.q.put(("update_ready", str(new_app)))
+        except _UpdateCancelled:
+            shutil.rmtree(staging, ignore_errors=True)
+            self.q.put(("update_cancelled", None))
+        except Exception as e:
+            shutil.rmtree(staging, ignore_errors=True)
+            self.q.put(("update_error", str(e)))
+
+    def _install_update(self, new_app):
+        new_app = Path(new_app)
+        try:
+            app_bundle = Path(sys.executable).resolve().parents[2]
+        except Exception:
+            app_bundle = None
+        if (app_bundle is None or app_bundle.suffix != ".app"
+                or not os.access(app_bundle.parent, os.W_OK)):
+            subprocess.run(["open", "-R", str(new_app)])
+            messagebox.showinfo(
+                "Update downloaded",
+                "The update was downloaded but couldn't be installed automatically "
+                "(this app's folder isn't writable).\n\n"
+                f"Drag “{new_app.name}” — now shown in Finder — into your Applications "
+                "folder, replacing the old copy.")
+            self._render_update_available()
+            return
+        script = APP_SUPPORT / "update-swap.sh"
+        try:
+            script.write_text(SWAP_SCRIPT)
+            os.chmod(script, 0o755)
+            subprocess.Popen(
+                ["/bin/sh", str(script), str(os.getpid()), str(app_bundle), str(new_app)],
+                start_new_session=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            messagebox.showerror("Update failed", f"Couldn't start the installer:\n{e}")
+            self._render_update_available()
+            return
+        self.status_var.set("Installing update… the app will relaunch.")
+        self.root.after(200, self._quit_now)
+
+    def _quit_now(self):
+        try:
+            self.root.destroy()
+        finally:
+            os._exit(0)
+
+    def _clear_banner(self):
+        for w in self.banner_holder.winfo_children():
+            w.destroy()
+        self.update_msg = None
+        self.update_progress = None
+
+    def _hide_update_banner(self):
+        self._clear_banner()
+
+    def _render_update_available(self):
+        info = self._pending_update
+        if not info:
+            return
+        self._clear_banner()
+        bar = ttk.Frame(self.banner_holder, padding=(16, 8))
+        bar.pack(fill="x")
+        ttk.Separator(self.banner_holder).pack(fill="x")
+        ttk.Label(bar, text="🔄").pack(side="left")
+        ttk.Label(bar, text=f"Version {info['version']} is available "
+                            f"(you have {APP_VERSION}).").pack(side="left", padx=(6, 0))
+        ttk.Button(bar, text="Later", command=self._hide_update_banner).pack(side="right")
+        ttk.Button(bar, text="Release Notes",
+                   command=lambda: webbrowser.open(info["html_url"])).pack(side="right", padx=(0, 8))
+        primary = "Update Now" if (FROZEN and info.get("asset_url")) else "Open Download Page"
+        ttk.Button(bar, text=primary, command=self._start_update).pack(side="right", padx=(0, 8))
+
+    def _render_update_downloading(self):
+        self._clear_banner()
+        bar = ttk.Frame(self.banner_holder, padding=(16, 8))
+        bar.pack(fill="x")
+        ttk.Separator(self.banner_holder).pack(fill="x")
+        ttk.Label(bar, text="⬇️").pack(side="left")
+        self.update_msg = ttk.Label(bar, text="Starting download…")
+        self.update_msg.pack(side="left", padx=(6, 0))
+        ttk.Button(bar, text="Cancel", command=self._cancel_update).pack(side="right")
+        self.update_progress = ttk.Progressbar(bar, mode="determinate", maximum=100, length=180)
+        self.update_progress.pack(side="right", padx=(0, 8))
 
     # ---------- Models ----------
     def _load_models_async(self):
@@ -682,6 +977,46 @@ class SeparatorApp:
                     self.refresh_btn.configure(state="normal")
                     self.status_var.set("Could not load models.")
                     self._log(f"Model list error: {payload}\n")
+                elif kind == "update_result":
+                    self._update_checking = False
+                    res = payload
+                    self.settings["last_update_check"] = time.time()
+                    self._save_settings()
+                    if res.get("ok") and res.get("newer"):
+                        self._pending_update = res["info"]
+                        self._render_update_available()
+                        if res.get("manual"):
+                            self.status_var.set(f"Version {res['info']['version']} is available.")
+                    elif res.get("manual"):
+                        if res.get("ok"):
+                            messagebox.showinfo(
+                                "Check for Updates",
+                                f"You're up to date (version {APP_VERSION}).")
+                        else:
+                            messagebox.showerror(
+                                "Check for Updates",
+                                f"Couldn't check for updates:\n{res.get('error')}")
+                        self.status_var.set(
+                            f"{len(self.models)} models available." if self.models else "Ready.")
+                elif kind == "update_prog":
+                    if self.update_progress is not None:
+                        done, total = payload
+                        pct = (done / total * 100) if total else 0
+                        self.update_progress.configure(value=min(100, pct))
+                        tot = f" of {total / 1e6:.0f} MB" if total else ""
+                        self.update_msg.configure(text=f"Downloading update… {done / 1e6:.0f} MB{tot}")
+                elif kind == "update_ready":
+                    self._update_downloading = False
+                    if self.update_msg is not None:
+                        self.update_msg.configure(text="Installing…")
+                    self._install_update(payload)
+                elif kind == "update_error":
+                    self._update_downloading = False
+                    messagebox.showerror("Update failed", str(payload))
+                    self._render_update_available()
+                elif kind == "update_cancelled":
+                    self._update_downloading = False
+                    self._render_update_available()
                 elif kind == "done":
                     if (self._saw_memory_error and not self._chunked_retry
                             and not self._cancelled):
