@@ -8,7 +8,8 @@ BUILD="$HERE/build"
 APP="$BUILD/$APP_NAME.app"
 VENV_PY="$HOME/.venvs/mlx-audio-separator/bin/python"
 BUNDLE_ID="com.rewon.mlxaudioseparator"
-VERSION="1.2.0"
+# Single source of truth: APP_VERSION in app.py.
+VERSION="$(grep -m1 '^APP_VERSION' "$HERE/app.py" | sed -E 's/[^"]*"([^"]+)".*/\1/')"
 
 echo "==> Clean build dir"
 rm -rf "$BUILD"

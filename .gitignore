@@ -4,3 +4,4 @@ build/
 dist/
 bundle_work/
 .cache/
+.hallmark/
