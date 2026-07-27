@@ -31,7 +31,7 @@ MODEL_DIR = APP_SUPPORT / "models"
 INDEX_CACHE = APP_SUPPORT / "models_index.json"
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
 GITHUB_URL = "https://github.com/fdebkowski/mlx-audio-separator-gui"
-APP_VERSION = "1.2.1"  # single source of truth; build.sh / build_bundle.sh read this
+APP_VERSION = "1.3.0"  # single source of truth; build.sh / build_bundle.sh read this
 # Auto-update checks the repo's "latest release" and, in the packaged .app,
 # downloads the new bundle and swaps it in place. Derived from GITHUB_URL so the
 # repo lives in one spot.
