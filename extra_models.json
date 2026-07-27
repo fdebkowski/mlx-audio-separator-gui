@@ -1,0 +1,129 @@
+{
+  "Roformer Model: BS Roformer | Leap Vocals by unwa": {
+    "filename": "bs_roformer_leap_voc.ckpt",
+    "config": "bs_leap_voc_conf.yaml",
+    "urls": [
+      "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_roformer_leap_voc.ckpt",
+      "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_leap_voc_conf.yaml"
+    ],
+    "stems": ["vocals", "other"],
+    "target_stem": "vocals",
+    "scores": {"vocals": {"SDR": 11.7398}}
+  },
+  "Roformer Model: BS Roformer | Leap Instrumental by unwa": {
+    "filename": "bs_roformer_leap_inst.ckpt",
+    "config": "bs_leap_inst_conf.yaml",
+    "urls": [
+      "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_roformer_leap_inst.ckpt",
+      "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_leap_inst_conf.yaml"
+    ],
+    "stems": ["vocals", "other"],
+    "target_stem": "other"
+  },
+  "Roformer Model: MelBand Roformer | Big Beta 7 by unwa": {
+    "filename": "big_beta7.ckpt",
+    "config": "big_beta7.yaml",
+    "urls": [
+      "https://huggingface.co/pcunwa/Mel-Band-Roformer-big/resolve/main/big_beta7.ckpt",
+      "https://huggingface.co/pcunwa/Mel-Band-Roformer-big/resolve/main/big_beta7.yaml"
+    ],
+    "stems": ["vocals", "other"],
+    "target_stem": "vocals"
+  },
+  "Roformer Model: MelBand Roformer | Deux by becruily": {
+    "filename": "becruily_deux.ckpt",
+    "config": "config_deux_becruily.yaml",
+    "urls": [
+      "https://huggingface.co/becruily/mel-band-roformer-deux/resolve/main/becruily_deux.ckpt",
+      "https://huggingface.co/becruily/mel-band-roformer-deux/resolve/main/config_deux_becruily.yaml"
+    ],
+    "stems": ["vocals", "instrumental"],
+    "target_stem": null,
+    "scores": {"vocals": {"SDR": 11.3695}, "instrumental": {"SDR": 17.5466}}
+  },
+  "Roformer Model: MelBand Roformer | Guitar by becruily": {
+    "filename": "becruily_guitar.ckpt",
+    "config": "config_guitar_becruily.yaml",
+    "urls": [
+      "https://huggingface.co/becruily/mel-band-roformer-guitar/resolve/main/becruily_guitar.ckpt",
+      "https://huggingface.co/becruily/mel-band-roformer-guitar/resolve/main/config_guitar_becruily.yaml"
+    ],
+    "stems": ["guitar", "other"],
+    "target_stem": "guitar"
+  },
+  "Roformer Model: BS Roformer | Karaoke by Frazer & becruily": {
+    "filename": "bs_roformer_karaoke_frazer_becruily.ckpt",
+    "config": "config_karaoke_frazer_becruily.yaml",
+    "urls": [
+      "https://huggingface.co/becruily/bs-roformer-karaoke/resolve/main/bs_roformer_karaoke_frazer_becruily.ckpt",
+      "https://huggingface.co/becruily/bs-roformer-karaoke/resolve/main/config_karaoke_frazer_becruily.yaml"
+    ],
+    "stems": ["vocals", "instrumental"],
+    "target_stem": "vocals"
+  },
+  "Roformer Model: MelBand Roformer | INSTV9 by Gabox": {
+    "filename": "INSTV9.ckpt",
+    "config": "inst_gabox.yaml",
+    "urls": [
+      "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/experimental/INSTV9.ckpt",
+      "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/instrumental/inst_gabox.yaml"
+    ],
+    "stems": ["instrumental", "vocals"],
+    "target_stem": "instrumental"
+  },
+  "Roformer Model: MelBand Roformer | INSTV10 by Gabox": {
+    "filename": "INSTV10.ckpt",
+    "config": "inst_gabox.yaml",
+    "urls": [
+      "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/experimental/INSTV10.ckpt",
+      "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/instrumental/inst_gabox.yaml"
+    ],
+    "stems": ["instrumental", "vocals"],
+    "target_stem": "instrumental"
+  },
+  "Roformer Model: MelBand Roformer | Instrumental FV9 by Gabox": {
+    "filename": "Inst_GaboxFv9.ckpt",
+    "config": "inst_gabox.yaml",
+    "urls": [
+      "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/instrumental/Inst_GaboxFv9.ckpt",
+      "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/instrumental/inst_gabox.yaml"
+    ],
+    "stems": ["instrumental", "vocals"],
+    "target_stem": "instrumental"
+  },
+  "Roformer Model: MelBand Roformer | Vocals FV7 by Gabox": {
+    "filename": "voc_fv7.ckpt",
+    "config": "v7.yaml",
+    "urls": [
+      "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/vocals/voc_fv7.ckpt",
+      "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/vocals/v7.yaml"
+    ],
+    "stems": ["vocals", "instrumental"],
+    "target_stem": "vocals",
+    "scores": {"vocals": {"SDR": 10.9634}}
+  },
+  "Roformer Model: MelBand Roformer | 4-Stem Large by Aname": {
+    "filename": "mel_band_roformer_4stems_large_ver1.ckpt",
+    "config": "config_large.yaml",
+    "urls": [
+      "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/mel_band_roformer_4stems_large_ver1.ckpt",
+      "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/config_large.yaml"
+    ],
+    "stems": ["drums", "bass", "other", "vocals"],
+    "target_stem": null,
+    "scores": {"drums": {"SDR": 9.3964}, "bass": {"SDR": 9.7225},
+               "other": {"SDR": 5.1131}, "vocals": {"SDR": 8.6491}}
+  },
+  "Roformer Model: MelBand Roformer | 4-Stem XL by Aname": {
+    "filename": "mel_band_roformer_4stems_xl_ver1.ckpt",
+    "config": "config_xl.yaml",
+    "urls": [
+      "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/mel_band_roformer_4stems_xl_ver1.ckpt",
+      "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/config_xl.yaml"
+    ],
+    "stems": ["drums", "bass", "other", "vocals"],
+    "target_stem": null,
+    "scores": {"drums": {"SDR": 9.3651}, "bass": {"SDR": 9.8276},
+               "other": {"SDR": 5.3073}, "vocals": {"SDR": 8.5684}}
+  }
+}

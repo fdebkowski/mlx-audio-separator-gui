@@ -62,6 +62,7 @@ arch -arm64 "$PYI" \
   --collect-all mlx_spectro \
   --collect-all certifi \
   --add-data "$HERE/vendor/tkdnd:vendor/tkdnd" \
+  --add-data "$HERE/extra_models.json:." \
   --hidden-import lameenc \
   --hidden-import runner \
   --hidden-import app \

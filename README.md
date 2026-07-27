@@ -28,11 +28,13 @@ upload your music. This app does the same job on your own Mac:
   splitter — the *Stems* column shows exactly what each one produces.
 - **Private and free** — your audio never leaves your computer. Processing runs
   on the Apple Silicon GPU via [MLX](https://github.com/ml-explore/mlx).
-- **160+ community models** — the same Mel-Band RoFormer / BS-RoFormer /
-  MDX23C / Demucs models used by the stem-separation community. Click any
-  column to sort — by quality (SDR), or by *Stems* to bring the models that
-  split into the most tracks to the top. Models download automatically on
-  first use.
+- **170+ community models** — the same Mel-Band RoFormer / BS-RoFormer /
+  MDX23C / Demucs models used by the stem-separation community, plus a curated
+  set of newer 2025–2026 community releases (unwa Leap and Big Beta 7,
+  becruily Deux and Guitar, Gabox INSTV9/V10, 4-stem Mel-Band RoFormers).
+  Click any column to sort — by quality (SDR), or by *Stems* to bring the
+  models that split into the most tracks to the top. Models download
+  automatically on first use.
 - **Batch friendly** — drag songs or whole folders straight in from Finder,
   and choose FLAC, WAV, or MP3 output.
 
