@@ -8,7 +8,8 @@
     ],
     "stems": ["vocals", "other"],
     "target_stem": "vocals",
-    "scores": {"vocals": {"SDR": 11.7398}}
+    "scores": {"vocals": {"SDR": 11.7398}},
+    "benchmark": "MVSEP"
   },
   "Roformer Model: BS Roformer | Leap Instrumental by unwa": {
     "filename": "bs_roformer_leap_inst.ckpt",
@@ -16,6 +17,28 @@
     "urls": [
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_roformer_leap_inst.ckpt",
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_leap_inst_conf.yaml"
+    ],
+    "stems": ["vocals", "other"],
+    "target_stem": "other"
+  },
+  "Roformer Model: BS Roformer | Leap Xe Vocals by unwa": {
+    "filename": "bs_leap_xe_voc.ckpt",
+    "config": "leap_xe_config_voc.yaml",
+    "urls": [
+      "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/Xe/bs_leap_xe_voc.ckpt",
+      "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/Xe/leap_xe_config_voc.yaml"
+    ],
+    "stems": ["vocals", "other"],
+    "target_stem": "vocals",
+    "scores": {"vocals": {"SDR": 11.7577}},
+    "benchmark": "MVSEP"
+  },
+  "Roformer Model: BS Roformer | Leap Xe Instrumental by unwa": {
+    "filename": "bs_leap_xe_inst.ckpt",
+    "config": "leap_xe_config_inst.yaml",
+    "urls": [
+      "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/Xe/bs_leap_xe_inst.ckpt",
+      "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/Xe/leap_xe_config_inst.yaml"
     ],
     "stems": ["vocals", "other"],
     "target_stem": "other"
@@ -39,7 +62,8 @@
     ],
     "stems": ["vocals", "instrumental"],
     "target_stem": null,
-    "scores": {"vocals": {"SDR": 11.3695}, "instrumental": {"SDR": 17.5466}}
+    "scores": {"vocals": {"SDR": 11.3695}, "instrumental": {"SDR": 17.5466}},
+    "benchmark": "MVSEP"
   },
   "Roformer Model: MelBand Roformer | Guitar by becruily": {
     "filename": "becruily_guitar.ckpt",
@@ -100,7 +124,8 @@
     ],
     "stems": ["vocals", "instrumental"],
     "target_stem": "vocals",
-    "scores": {"vocals": {"SDR": 10.9634}}
+    "scores": {"vocals": {"SDR": 10.9634}},
+    "benchmark": "MVSEP"
   },
   "Roformer Model: MelBand Roformer | 4-Stem Large by Aname": {
     "filename": "mel_band_roformer_4stems_large_ver1.ckpt",
@@ -112,7 +137,8 @@
     "stems": ["drums", "bass", "other", "vocals"],
     "target_stem": null,
     "scores": {"drums": {"SDR": 9.3964}, "bass": {"SDR": 9.7225},
-               "other": {"SDR": 5.1131}, "vocals": {"SDR": 8.6491}}
+               "other": {"SDR": 5.1131}, "vocals": {"SDR": 8.6491}},
+    "benchmark": "MVSEP"
   },
   "Roformer Model: MelBand Roformer | 4-Stem XL by Aname": {
     "filename": "mel_band_roformer_4stems_xl_ver1.ckpt",
@@ -124,6 +150,7 @@
     "stems": ["drums", "bass", "other", "vocals"],
     "target_stem": null,
     "scores": {"drums": {"SDR": 9.3651}, "bass": {"SDR": 9.8276},
-               "other": {"SDR": 5.3073}, "vocals": {"SDR": 8.5684}}
+               "other": {"SDR": 5.3073}, "vocals": {"SDR": 8.5684}},
+    "benchmark": "MVSEP"
   }
 }

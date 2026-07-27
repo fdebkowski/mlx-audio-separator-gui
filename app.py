@@ -43,7 +43,7 @@ UPDATE_CHECK_INTERVAL = 24 * 3600  # auto-check at most once a day
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
 # Bump when the curated extra_models.json changes so existing installs drop
 # their cached model index and pick up the additions.
-MODELS_REV = 3
+MODELS_REV = 4
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
 FORMATS = ["FLAC", "WAV", "MP3"]
 MAX_LOG_LINES = 5000  # cap the log widget so long/batch runs don't grow memory without bound
@@ -136,6 +136,13 @@ def best_sdr(info):
 
 def sdr_num(m):
     return m["sdr"] if isinstance(m["sdr"], (int, float)) else float("-inf")
+
+
+# The engine's bundled scores are median SDR over MUSDB18 tracks; extra_models
+# entries carry MVSEP multisong numbers, which run roughly a dB lower for the
+# same model. Tag every score with its source so the column isn't read as one
+# ranking (see the note under the model table).
+DEFAULT_BENCH = "MUSDB"
 
 
 class _UpdateCancelled(Exception):
@@ -437,7 +444,7 @@ class SeparatorApp:
             self.tree.heading(c, text=text, command=lambda col=c: self._sort_by(col))
         self.tree.column("name", width=430, anchor="w")
         self.tree.column("stems", width=180, anchor="w")
-        self.tree.column("sdr", width=95, anchor="center")
+        self.tree.column("sdr", width=130, anchor="center")
         self.tree.column("disk", width=60, anchor="center")
         vs = ttk.Scrollbar(tree_wrap, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vs.set)
@@ -450,7 +457,10 @@ class SeparatorApp:
         ttk.Label(model_frame,
                   text="Models download automatically the first time you use them "
                        "(right-click a downloaded one to manage it). Click a column to "
-                       "sort — e.g. Stems to find the models that split into the most tracks.",
+                       "sort — e.g. Stems to find the models that split into the most "
+                       "tracks. Quality shows each model's published SDR and the "
+                       "benchmark it was measured on: MVSEP's multisong set is harder "
+                       "than MUSDB, so only compare scores carrying the same tag.",
                   foreground=self.sub_color, wraplength=780, justify="left").pack(
                       anchor="w", pady=(4, 0))
 
@@ -938,6 +948,7 @@ class SeparatorApp:
                     "arch": arch,
                     "stems": info.get("stems") or [],
                     "sdr": sdr,
+                    "bench": info.get("benchmark") or DEFAULT_BENCH,
                 })
         # Recommended first, then best quality, so casual users see good picks on top.
         models.sort(key=lambda m: (m["filename"] != DEFAULT_MODEL, -sdr_num(m),
@@ -948,7 +959,8 @@ class SeparatorApp:
         prev_sel = self.tree.selection()
         self.tree.delete(*self.tree.get_children())
         for m in models:
-            sdr = f"{m['sdr']:.1f}" if isinstance(m["sdr"], (int, float)) else "—"
+            sdr = (f"{m['sdr']:.1f} {m['bench']}"
+                   if isinstance(m["sdr"], (int, float)) else "—")
             names = ", ".join(m["stems"]) or "vocals, instrumental"
             stems = f"{stem_count(m)} · {names}"
             name = m["friendly"]
