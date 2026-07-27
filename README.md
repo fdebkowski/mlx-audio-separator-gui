@@ -86,7 +86,9 @@ reuses your Python install instead of bundling one, so it's much smaller.
    all-rounder. Click a column heading to sort — *Quality (SDR)* for the
    cleanest split, or *Stems* to bring the models that split into the most
    tracks (like the 4- and 6-stem Demucs models) to the top. The *Stems* column
-   shows how many tracks each model makes and what they are.
+   shows how many tracks each model makes and what they are; *Quality* shows
+   the published SDR plus the benchmark it came from (MUSDB or MVSEP's harder
+   multisong set), so only compare scores carrying the same tag.
 3. **Choose what you get** — output format, all stems or just one (e.g.
    *Vocals only* or *Drums only*), and where to save. Leave *Save to* empty to
    put the stems next to each song.

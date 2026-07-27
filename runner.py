@@ -112,6 +112,10 @@ def _install_extra_models_shim():
                 "scores": extra.get("scores") or {},
                 "stems": extra.get("stems") or [],
                 "target_stem": extra.get("target_stem"),
+                # Which benchmark the scores came from; the engine's own
+                # numbers are MUSDB18 medians, ours are MVSEP multisong, and
+                # the two aren't comparable — the GUI labels them apart.
+                "benchmark": extra.get("benchmark"),
                 # URLs first so both files land on disk under their basenames;
                 # the bare yaml name after them then resolves as the model's
                 # config (already present, so no repo-prefix download attempt).
