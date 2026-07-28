@@ -45,6 +45,14 @@ DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
 # their cached model index and pick up the additions.
 MODELS_REV = 4
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
+# Configs/metadata that ride along with a model download. A few KB each and
+# re-fetched on demand, so they don't decide whether a model counts as
+# downloaded — only its weights do.
+AUX_EXTS = {".yaml", ".yml", ".json", ".txt", ".md"}
+# Demucs weights are converted to MLX on first use and cached here by the
+# engine (demucs_mlx.model_converter), outside MODEL_DIR and roughly twice the
+# size of the download itself — so deleting a Demucs model has to clear it too.
+DEMUCS_MLX_CACHE = Path.home() / ".cache" / "demucs-mlx"
 FORMATS = ["FLAC", "WAV", "MP3"]
 MAX_LOG_LINES = 5000  # cap the log widget so long/batch runs don't grow memory without bound
 PERCENT_RE = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*%")
@@ -103,6 +111,16 @@ def tkdnd_dir():
 def stem_count(model):
     """How many stems a model outputs (2 for the vocals/instrumental default)."""
     return len(model.get("stems") or []) or 2
+
+
+def weight_files(model):
+    """The model's weight filenames — its download minus the config files.
+
+    Usually one checkpoint; Demucs bags such as htdemucs_ft are four .th files
+    behind a single yaml.
+    """
+    files = model.get("files") or [model["filename"]]
+    return [f for f in files if Path(f).suffix.lower() not in AUX_EXTS]
 
 
 def stem_options(model_stems):
@@ -231,10 +249,10 @@ class SeparatorApp:
         self.root = root
         self.proc = None
         self.q = queue.Queue()
-        self.models = []           # list of dicts: friendly, filename, arch, stems, sdr
+        self.models = []           # list of dicts: friendly, filename, arch, stems, sdr, files
         self.filtered = []
         self.model_by_file = {}
-        self.downloaded = set()    # filenames of model weights present on disk
+        self.downloaded = set()    # filenames of models whose weights are on disk
         self.stem_map = {"All stems": None}
         # Full paths; the listbox shows friendly names. Seed from argv (Open With…).
         self.input_paths = [p for p in sys.argv[1:] if os.path.exists(p)]
@@ -942,6 +960,13 @@ class SeparatorApp:
                 if not fn:
                     continue
                 sdr = best_sdr(info)
+                # Everything the engine puts in MODEL_DIR for this model, by
+                # basename (the entries are a mix of bare names and URLs).
+                # Needed because a model's own filename isn't always a weight
+                # file — see _scan_downloaded.
+                files = list(dict.fromkeys(
+                    f.rsplit("/", 1)[-1]
+                    for f in (info.get("download_files") or [fn])))
                 models.append({
                     "friendly": friendly,
                     "filename": fn,
@@ -949,6 +974,7 @@ class SeparatorApp:
                     "stems": info.get("stems") or [],
                     "sdr": sdr,
                     "bench": info.get("benchmark") or DEFAULT_BENCH,
+                    "files": files,
                 })
         # Recommended first, then best quality, so casual users see good picks on top.
         models.sort(key=lambda m: (m["filename"] != DEFAULT_MODEL, -sdr_num(m),
@@ -1051,12 +1077,20 @@ class SeparatorApp:
 
     # ---------- Downloaded models ----------
     def _scan_downloaded(self):
-        """Filenames of model weight files present on disk (skip configs/aux)."""
-        aux = {".yaml", ".yml", ".json", ".txt", ".md"}
-        self.downloaded = {
-            p.name for p in MODEL_DIR.glob("*")
-            if p.is_file() and not p.name.startswith(".") and p.suffix.lower() not in aux
-        }
+        """Model filenames (tree row ids) whose weights are all on disk.
+
+        Decided from each model's own file list rather than from what its name
+        looks like: a Demucs model is identified by a .yaml naming a bag of
+        .th weights, so matching the row id against the directory listing —
+        or filtering yaml out as a config — never marks Demucs as downloaded.
+        """
+        on_disk = {p.name for p in MODEL_DIR.glob("*") if p.is_file()}
+        found = set()
+        for m in self.models:
+            weights = weight_files(m)
+            if weights and on_disk.issuperset(weights):
+                found.add(m["filename"])
+        self.downloaded = found
         return self.downloaded
 
     def _toggle_downloaded_only(self):
@@ -1081,22 +1115,52 @@ class SeparatorApp:
             menu.grab_release()
 
     def _reveal_model(self, filename):
-        p = MODEL_DIR / filename
-        if p.exists():
-            subprocess.run(["open", "-R", str(p)])
+        # A Demucs model's own filename is its yaml, so fall back to the first
+        # weight that's actually there rather than showing nothing.
+        m = self.model_by_file.get(filename) or {"filename": filename}
+        for name in [filename, *weight_files(m)]:
+            p = MODEL_DIR / name
+            if p.exists():
+                subprocess.run(["open", "-R", str(p)])
+                return
+
+    def _model_files_on_disk(self, filename):
+        """Every file this model alone owns, across MODEL_DIR and the MLX cache.
+
+        Configs are skipped when another model lists them too — several
+        Roformers share one yaml, and deleting it would break them.
+        """
+        m = self.model_by_file.get(filename)
+        if m is None:
+            return [MODEL_DIR / filename]
+        shared = {f for other in self.models if other["filename"] != filename
+                  for f in other.get("files") or []}
+        paths = [MODEL_DIR / f for f in m["files"] if f not in shared]
+        if m["arch"] == "Demucs":
+            stem = Path(filename).stem
+            paths += [DEMUCS_MLX_CACHE / f"{stem}_mlx.pkl",
+                      DEMUCS_MLX_CACHE / f"{stem}.safetensors",
+                      DEMUCS_MLX_CACHE / f"{stem}_config.json"]
+        return [p for p in paths if p.exists()]
 
     def _delete_model(self, filename):
-        p = MODEL_DIR / filename
+        paths = self._model_files_on_disk(filename)
+        if not paths:
+            return
+        size = sum(p.stat().st_size for p in paths)
+        name = (self.model_by_file.get(filename) or {}).get("friendly", filename)
         if not messagebox.askyesno(
                 "Delete model",
-                f"Delete this downloaded model file?\n\n{filename}\n\n"
+                f"Delete this downloaded model?\n\n{name}\n"
+                f"{len(paths)} file(s), {size / 1e6:.0f} MB\n\n"
                 "It will be downloaded again the next time you use it."):
             return
-        try:
-            p.unlink()
-        except OSError as e:
-            messagebox.showerror("Delete failed", str(e))
-            return
+        for p in paths:
+            try:
+                p.unlink()
+            except OSError as e:
+                messagebox.showerror("Delete failed", str(e))
+                break
         self._scan_downloaded()
         self._apply_filter()
 
