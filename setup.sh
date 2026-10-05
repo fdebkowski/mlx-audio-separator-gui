@@ -40,7 +40,7 @@ fi
 
 echo "==> Installing the separation engine (mlx-audio-separator)"
 "$VENV/bin/pip" install --upgrade pip >/dev/null
-"$VENV/bin/pip" install --upgrade 'mlx-audio-separator[convert]'
+"$VENV/bin/pip" install --upgrade -r "$HERE/requirements-engine.txt"
 
 if ! command -v ffmpeg >/dev/null 2>&1 \
    && [[ ! -x /opt/homebrew/bin/ffmpeg && ! -x /usr/local/bin/ffmpeg ]]; then

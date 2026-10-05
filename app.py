@@ -31,7 +31,7 @@ MODEL_DIR = APP_SUPPORT / "models"
 INDEX_CACHE = APP_SUPPORT / "models_index.json"
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
 GITHUB_URL = "https://github.com/fdebkowski/mlx-audio-separator-gui"
-APP_VERSION = "1.3.0"  # single source of truth; build.sh / build_bundle.sh read this
+APP_VERSION = "1.3.1"  # single source of truth; build.sh / build_bundle.sh read this
 # Auto-update checks the repo's "latest release" and, in the packaged .app,
 # downloads the new bundle and swaps it in place. Derived from GITHUB_URL so the
 # repo lives in one spot.
@@ -41,9 +41,9 @@ UPDATE_UA = f"MLX-Audio-Separator/{APP_VERSION} (macOS auto-update)"
 UPDATE_CHECK_INTERVAL = 24 * 3600  # auto-check at most once a day
 
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
-# Bump when the curated extra_models.json changes so existing installs drop
-# their cached model index and pick up the additions.
-MODELS_REV = 4
+# Bump when the engine or curated extra_models.json changes so existing
+# installs drop their cached model index and pick up the additions.
+MODELS_REV = 5
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
 # Configs/metadata that ride along with a model download. A few KB each and
 # re-fetched on demand, so they don't decide whether a model counts as
@@ -960,12 +960,13 @@ class SeparatorApp:
                 if not fn:
                     continue
                 sdr = best_sdr(info)
-                # Everything the engine puts in MODEL_DIR for this model, by
-                # basename (the entries are a mix of bare names and URLs).
+                # Everything the engine puts in MODEL_DIR for this model.
+                # URLs use their basename; local entries may include a model
+                # subfolder (e.g. ZFTurbo's MLX weights and config).
                 # Needed because a model's own filename isn't always a weight
                 # file — see _scan_downloaded.
                 files = list(dict.fromkeys(
-                    f.rsplit("/", 1)[-1]
+                    f.rsplit("/", 1)[-1] if "://" in f else f
                     for f in (info.get("download_files") or [fn])))
                 models.append({
                     "friendly": friendly,
@@ -1084,11 +1085,10 @@ class SeparatorApp:
         .th weights, so matching the row id against the directory listing —
         or filtering yaml out as a config — never marks Demucs as downloaded.
         """
-        on_disk = {p.name for p in MODEL_DIR.glob("*") if p.is_file()}
         found = set()
         for m in self.models:
             weights = weight_files(m)
-            if weights and on_disk.issuperset(weights):
+            if weights and all((MODEL_DIR / f).is_file() for f in weights):
                 found.add(m["filename"])
         self.downloaded = found
         return self.downloaded
