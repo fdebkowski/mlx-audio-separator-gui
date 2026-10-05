@@ -1,0 +1,30 @@
+{
+  "excluded_repos": [
+    "Aname-Tommy/Test"
+  ],
+  "config_pairs": {
+    "anvuew/BS-RoFormer": {
+      "bs_roformer_anvuew_sdr_12.45.ckpt": "config.yaml",
+      "bs_roformer_ft1_anvuew_sdr_12.55.ckpt": "config.yaml"
+    },
+    "GaboxR67/MelBandRoformers": {
+      "melbandroformers/instrumental/inst_gaboxFlowersV10.ckpt": "melbandroformers/instrumental/v10.yaml",
+      "melbandroformers/karaoke/small_karaoke_gaboxaufr.ckpt": "melbandroformers/karaoke/config_karaoke_small.yaml",
+      "bsroformers/bs_karaoke_gabox_IS.ckpt": "bsroformers/karaoke_bs_roformer.yaml"
+    },
+    "Aname-Tommy/BS-Roformers": {
+      "bs_roformer_dual_voc_inst_lazy_bat.ckpt": "lazy_bat_2stems.yaml"
+    }
+  },
+  "aliases": {
+    "pcunwa/Mel-Band-Roformer-big/big_beta5e.ckpt": "melband_roformer_big_beta5e.ckpt",
+    "pcunwa/Mel-Band-Roformer-big/big_beta6.ckpt": "melband_roformer_big_beta6.ckpt",
+    "pcunwa/Mel-Band-Roformer-big/big_beta6x.ckpt": "melband_roformer_big_beta6x.ckpt",
+    "pcunwa/BS-Roformer-Resurrection/BS-Roformer-Resurrection.ckpt": "bs_roformer_vocals_resurrection_unwa.ckpt",
+    "pcunwa/BS-Roformer-Resurrection/BS-Roformer-Resurrection-Inst.ckpt": "bs_roformer_instrumental_resurrection_unwa.ckpt",
+    "GaboxR67/BSRoformerVocTest/voc_gaboxBSR.ckpt": "bs_roformer_vocals_gabox.ckpt",
+    "GaboxR67/MelBandRoformers/melbandroformers/instrumental/inst_gabox.ckpt": "mel_band_roformer_instrumental_gabox.ckpt",
+    "GaboxR67/MelBandRoformers/melbandroformers/vocals/voc_gabox.ckpt": "mel_band_roformer_vocals_gabox.ckpt",
+    "anvuew/karaoke_bs_roformer/karaoke_bs_roformer_anvuew.ckpt": "bs_roformer_karaoke_anvuew.ckpt"
+  }
+}

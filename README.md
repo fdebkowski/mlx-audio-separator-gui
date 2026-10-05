@@ -34,6 +34,10 @@ upload your music. This app does the same job on your own Mac:
   becruily Deux and Guitar, Gabox INSTV9/V10, 4-stem Mel-Band RoFormers).
   ZFTurbo Mel-Band-RoFormer Vocals v1 is included using its native MLX
   weights and produces vocals and instrumental stems.
+  The catalog checks for newer compatible models and SDR metadata daily from
+  maintained GitHub registries and seven known Hugging Face authors, with an
+  offline cache. **4 stems** filters vocals/drums/bass/other choices, including
+  SW four-stem fold-down and the added ZFTurbo and SYH four-stem checkpoints.
   Click any column to sort — by quality (SDR), or by *Stems* to bring the
   models that split into the most tracks to the top. Models download
   automatically on first use.
@@ -88,7 +92,8 @@ reuses your Python install instead of bundling one, so it's much smaller.
    all-rounder. Click a column heading to sort — *Quality (SDR)* for the
    cleanest split, or *Stems* to bring the models that split into the most
    tracks (like the 4- and 6-stem Demucs models) to the top. The *Stems* column
-   shows how many tracks each model makes and what they are; *Quality* shows
+   shows how many tracks each model makes and what they are. Use **4 stems** to
+   find vocals/drums/bass/other models. *Quality* shows
    the published SDR plus the benchmark it came from (MUSDB or MVSEP's harder
    multisong set), so only compare scores carrying the same tag.
 3. **Choose what you get** — output format, all stems or just one (e.g.
@@ -104,6 +109,11 @@ Good to know:
   downloaded model in the list to reveal or delete it.
 - A 3–4 minute song typically separates in well under a minute on an M-series
   Mac, after the model is downloaded.
+- Right-click a model for **Quality and model details**: exact per-stem SDR,
+  benchmark and source. Multi-stem quality is the mean of reported stems.
+- **Refresh list** checks the online catalog immediately. The app checks daily
+  automatically and keeps the last working catalog when offline. New custom
+  architectures still need engine support. See the [model audit](docs/model-audit-2026-10-05.md).
 - **Show Details** reveals the full engine log — useful when reporting issues.
 
 ## Troubleshooting
@@ -127,6 +137,9 @@ addition is a vendored **tkdnd** Tcl extension for drag-and-drop — loaded via
 | --- | --- |
 | `app.py` | The whole GUI — a thin Tkinter driver that shells out to the engine and streams its output into the log/progress UI |
 | `vendor/tkdnd/` | Native drag-and-drop (tkdnd 2.10.1, arm64) so audio can be dragged onto the window; loaded through Tcl, not imported, and the app runs fine without it |
+| `model_catalog.py` | Online registry/score refresh, Hugging Face discovery, validation and atomic offline cache |
+| `score_overrides.json` | Verified missing SDR measurements with benchmark and primary-source URLs |
+| `catalog_settings.json` | Checkpoint/config pairings, renamed-model aliases and repositories requiring review |
 | `runner.py` | Engine shim (`main()`): puts the bundled (or Homebrew) `ffmpeg` on `PATH` for Finder-launched apps and patches `mlx_audio_io.save` to tolerate 24/32-bit sources |
 | `main_bundle.py` | PyInstaller entry point; one frozen binary runs as the GUI or, with `--separator-runner`, as the engine the GUI subprocesses |
 | `setup.sh` | Source install: venv + engine + `build.sh` |
