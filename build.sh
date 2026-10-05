@@ -30,6 +30,7 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 echo "==> Copy app source"
 cp "$HERE/app.py" "$APP/Contents/Resources/app.py"
 cp "$HERE/runner.py" "$APP/Contents/Resources/runner.py"
+cp "$HERE/model_catalog.py" "$HERE/extra_models.json" "$HERE/score_overrides.json" "$HERE/catalog_settings.json" "$APP/Contents/Resources/"
 # Vendored tkdnd (drag-and-drop) — app.py finds it next to itself under vendor/.
 cp -R "$HERE/vendor" "$APP/Contents/Resources/vendor"
 

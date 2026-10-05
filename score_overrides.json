@@ -1,0 +1,290 @@
+{
+  "bs_roformer_leap_inst.ckpt": {
+    "scores": {
+      "other": {
+        "SDR": 17.7626
+      },
+      "vocals": {
+        "SDR": 11.4551
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10415",
+    "target_stem": "other",
+    "stems": [
+      "vocals",
+      "other"
+    ]
+  },
+  "bs_leap_xe_inst.ckpt": {
+    "scores": {
+      "other": {
+        "SDR": 17.5094
+      },
+      "vocals": {
+        "SDR": 11.202
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10413",
+    "target_stem": "other",
+    "stems": [
+      "vocals",
+      "other"
+    ]
+  },
+  "becruily_guitar.ckpt": {
+    "scores": {
+      "guitar": {
+        "SDR": 5.2922
+      },
+      "other": {
+        "SDR": 12.2154
+      }
+    },
+    "benchmark": "MVSEP Guitar",
+    "source_url": "https://mvsep.com/quality_checker/entry/8308",
+    "target_stem": "guitar",
+    "stems": [
+      "guitar",
+      "other"
+    ]
+  },
+  "bs_roformer_karaoke_frazer_becruily.ckpt": {
+    "scores": {
+      "vocals": {
+        "SDR": 10.064
+      },
+      "instrumental": {
+        "SDR": 15.4503
+      }
+    },
+    "benchmark": "MVSEP Lead/Back",
+    "source_url": "https://mvsep.com/quality_checker/entry/9013",
+    "notes": "Lead vocals are labelled vocals by this checkpoint; the residual contains backing vocals and accompaniment.",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  },
+  "mel_band_roformer_karaoke_becruily.ckpt": {
+    "scores": {
+      "vocals": {
+        "SDR": 9.6142
+      },
+      "instrumental": {
+        "SDR": 15.0005
+      }
+    },
+    "benchmark": "MVSEP Lead/Back",
+    "source_url": "https://mvsep.com/quality_checker/entry/8190",
+    "notes": "Lead vocals are labelled vocals by this checkpoint; the residual contains backing vocals and accompaniment.",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  },
+  "mel_band_roformer_vocals_v2_gabox.ckpt": {
+    "scores": {
+      "instrumental": {
+        "SDR": 17.2853
+      },
+      "vocals": {
+        "SDR": 10.9778
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/8685",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  },
+  "Inst_GaboxFv9.ckpt": {
+    "scores": {
+      "instrumental": {
+        "SDR": 16.6202
+      },
+      "vocals": {
+        "SDR": 10.312
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10543",
+    "target_stem": "instrumental",
+    "stems": [
+      "instrumental",
+      "vocals"
+    ]
+  },
+  "becruily_invert_clean.ckpt": {
+    "scores": {
+      "other": {
+        "SDR": 17.0904
+      },
+      "Vocals": {
+        "SDR": 10.7849
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10752"
+  },
+  "bs_roformer_ft1_anvuew_sdr_12.55.ckpt": {
+    "scores": {
+      "instrument": {
+        "SDR": 17.7775
+      },
+      "vocals": {
+        "SDR": 11.4701
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10622",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrument"
+    ]
+  },
+  "bs_roformer_anvuew_sdr_12.45.ckpt": {
+    "scores": {
+      "instrument": {
+        "SDR": 17.7311
+      },
+      "vocals": {
+        "SDR": 11.4239
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10618",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrument"
+    ]
+  },
+  "BS-Roformer-SW.ckpt": {
+    "scores": {
+      "vocals": {
+        "SDR": 11.3019
+      },
+      "bass": {
+        "SDR": 14.6235
+      },
+      "drums": {
+        "SDR": 14.1129
+      },
+      "other": {
+        "SDR": 8.7169
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/8374",
+    "notes": "Published run uses chunk size 882000. Other is evaluated against the MUSDB other stem; the app also offers a four-stem fold-down."
+  },
+  "mel_band_roformer_vocals_fv1_gabox.ckpt": {
+    "scores": {
+      "instrumental": {
+        "SDR": 17.1367
+      },
+      "vocals": {
+        "SDR": 10.8292
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10566",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  },
+  "mel_band_roformer_vocals_fv2_gabox.ckpt": {
+    "scores": {
+      "instrumental": {
+        "SDR": 17.0127
+      },
+      "vocals": {
+        "SDR": 10.7052
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10567",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  },
+  "mel_band_roformer_vocals_fv3_gabox.ckpt": {
+    "scores": {
+      "instrumental": {
+        "SDR": 16.9158
+      },
+      "vocals": {
+        "SDR": 10.6083
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10568",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  },
+  "mel_band_roformer_vocals_fv4_gabox.ckpt": {
+    "scores": {
+      "instrumental": {
+        "SDR": 16.8851
+      },
+      "vocals": {
+        "SDR": 10.5776
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10569",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  },
+  "mel_band_roformer_vocals_fv5_gabox.ckpt": {
+    "scores": {
+      "instrumental": {
+        "SDR": 17.0543
+      },
+      "vocals": {
+        "SDR": 10.7468
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10570",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  },
+  "mel_band_roformer_vocals_fv6_gabox.ckpt": {
+    "scores": {
+      "instrumental": {
+        "SDR": 16.9248
+      },
+      "vocals": {
+        "SDR": 10.6174
+      }
+    },
+    "benchmark": "MVSEP",
+    "source_url": "https://mvsep.com/quality_checker/entry/10571",
+    "target_stem": "vocals",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ]
+  }
+}

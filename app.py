@@ -18,6 +18,7 @@ import time
 import urllib.request
 import webbrowser
 from pathlib import Path
+import model_catalog
 
 import tkinter as tk
 import tkinter.font as tkfont
@@ -31,7 +32,7 @@ MODEL_DIR = APP_SUPPORT / "models"
 INDEX_CACHE = APP_SUPPORT / "models_index.json"
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
 GITHUB_URL = "https://github.com/fdebkowski/mlx-audio-separator-gui"
-APP_VERSION = "1.3.1"  # single source of truth; build.sh / build_bundle.sh read this
+APP_VERSION = "1.4.0"  # single source of truth; build.sh / build_bundle.sh read this
 # Auto-update checks the repo's "latest release" and, in the packaged .app,
 # downloads the new bundle and swaps it in place. Derived from GITHUB_URL so the
 # repo lives in one spot.
@@ -43,7 +44,7 @@ UPDATE_CHECK_INTERVAL = 24 * 3600  # auto-check at most once a day
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
 # Bump when the engine or curated extra_models.json changes so existing
 # installs drop their cached model index and pick up the additions.
-MODELS_REV = 5
+MODELS_REV = 6
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
 # Configs/metadata that ride along with a model download. A few KB each and
 # re-fetched on demand, so they don't decide whether a model counts as
@@ -147,9 +148,10 @@ def best_sdr(info):
         return None
     if target:
         for stem, v in vals:
-            if stem == target:
+            if stem.lower() == target.lower():
                 return v
-    return max(v for _, v in vals)
+    # Multi-stem quality must reflect all outputs, not just the easiest stem.
+    return sum(v for _, v in vals) / len(vals) if len(vals) > 1 else vals[0][1]
 
 
 def sdr_num(m):
@@ -266,6 +268,7 @@ class SeparatorApp:
         self._update_cancel = False
         self._update_downloading = False
         self._pending_update = None
+        self._models_loading = False
         self.update_msg = None
         self.update_progress = None
         # None = the recommended default order from the worker; otherwise a
@@ -295,6 +298,7 @@ class SeparatorApp:
         self._load_models_async()
         self.root.after(80, self._poll_queue)
         self.root.after(1500, lambda: self._check_updates(manual=False))
+        self.root.after(3600_000, self._check_catalog_updates)
 
     # ---------- UI ----------
     def _setup_theme(self):
@@ -450,6 +454,9 @@ class SeparatorApp:
         self.downloaded_only_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(top, text="Downloaded only", variable=self.downloaded_only_var,
                         command=self._toggle_downloaded_only).pack(side="right", padx=(0, 10))
+        self.four_stems_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(top, text="4 stems", variable=self.four_stems_var,
+                        command=self._apply_filter).pack(side="right", padx=(0, 10))
 
         cols = ("name", "stems", "sdr", "disk")
         tree_wrap = ttk.Frame(model_frame)
@@ -476,9 +483,9 @@ class SeparatorApp:
                   text="Models download automatically the first time you use them "
                        "(right-click a downloaded one to manage it). Click a column to "
                        "sort — e.g. Stems to find the models that split into the most "
-                       "tracks. Quality shows each model's published SDR and the "
-                       "benchmark it was measured on: MVSEP's multisong set is harder "
-                       "than MUSDB, so only compare scores carrying the same tag.",
+                       "tracks. Catalog and scores refresh daily. Quality is the target "
+                       "stem's SDR, or an average for multi-stem models. Compare the same "
+                       "benchmark; right-click for per-stem scores and sources.",
                   foreground=self.sub_color, wraplength=780, justify="left").pack(
                       anchor="w", pady=(4, 0))
 
@@ -913,38 +920,63 @@ class SeparatorApp:
 
     # ---------- Models ----------
     def _load_models_async(self, force=False):
+        if self._models_loading:
+            return
+        self._models_loading = True
         self.refresh_btn.configure(state="disabled")
         self.status_var.set("Loading model list…")
         threading.Thread(target=self._load_models_worker, args=(force,),
                          daemon=True).start()
 
+    def _check_catalog_updates(self):
+        if self.proc is None and not self._models_loading and model_catalog.due(model_catalog.load_state()):
+            self._load_models_async()
+        self.root.after(3600_000, self._check_catalog_updates)
+
     def _load_models_worker(self, force=False):
         data = None
+        cached = None
+        warning = None
         # Prefer cache (unless stale or a refresh was requested), else fetch
         # from the CLI.
         if not force and INDEX_CACHE.exists():
             try:
                 cached = json.loads(INDEX_CACHE.read_text())
-                if isinstance(cached, dict) and cached.get("rev") == MODELS_REV:
+                if (isinstance(cached, dict) and cached.get("rev") == MODELS_REV
+                        and time.time() - cached.get("checked_at", 0) < model_catalog.REFRESH_INTERVAL):
                     data = cached["index"]
             except Exception:
                 data = None
         if data is None and (FROZEN or CLI.exists()):
             try:
                 out = subprocess.run(
-                    engine_cmd(["--list_models", "--list_format", "json",
+                    engine_cmd(["--gui-refresh-catalog", "--list_models", "--list_format", "json",
                                 "--log_level", "error", "--model_file_dir", str(MODEL_DIR)]),
                     capture_output=True, text=True, timeout=120,
                 )
+                if getattr(out, 'returncode', 0) != 0:
+                    raise RuntimeError(out.stderr.strip() or 'Catalog refresh failed')
                 raw = out.stdout
                 idxs = [i for i in (raw.find("{"), raw.find("[")) if i != -1]
                 if idxs:
                     data = json.loads(raw[min(idxs):])
-                    INDEX_CACHE.write_text(json.dumps({"rev": MODELS_REV,
-                                                       "index": data}))
+                    if not isinstance(data, dict) or not any(data.values()):
+                        raise ValueError('Empty or invalid model catalog')
+                    state = model_catalog.load_state()
+                    checked = time.time() if not state.get('warnings') else time.time() - model_catalog.REFRESH_INTERVAL + model_catalog.RETRY_INTERVAL
+                    model_catalog.atomic_json(INDEX_CACHE, {"rev": MODELS_REV, "checked_at": checked, "index": data})
+                    if state.get('warnings'):
+                        warning = 'Some catalog sources are offline; cached data is retained.'
+                else:
+                    raise ValueError('No catalog JSON returned')
             except Exception as e:
-                self.q.put(("models_error", str(e)))
-                return
+                fallback = (cached or model_catalog.read_json(INDEX_CACHE)).get('index')
+                if isinstance(fallback, dict) and any(fallback.values()):
+                    data = fallback
+                    warning = 'Offline: using the last saved model catalog. ' + str(e)
+                else:
+                    self.q.put(("models_error", str(e)))
+                    return
         if data is None:
             self.q.put(("models_error", "No model list available."))
             return
@@ -976,11 +1008,18 @@ class SeparatorApp:
                     "sdr": sdr,
                     "bench": info.get("benchmark") or DEFAULT_BENCH,
                     "files": files,
+                    "scores": info.get('scores') or {},
+                    "source_url": info.get('source_url'),
+                    "score_source": info.get('score_source') or info.get('score_source_url'),
+                    "score_notes": info.get('score_notes', ''),
+                    "updated": info.get('updated'),
                 })
         # Recommended first, then best quality, so casual users see good picks on top.
         models.sort(key=lambda m: (m["filename"] != DEFAULT_MODEL, -sdr_num(m),
                                    m["friendly"].lower()))
         self.q.put(("models_loaded", models))
+        if warning:
+            self.q.put(('catalog_warning', warning))
 
     def _populate_tree(self, models):
         prev_sel = self.tree.selection()
@@ -993,6 +1032,8 @@ class SeparatorApp:
             name = m["friendly"]
             if m["filename"] == DEFAULT_MODEL:
                 name += "   ★ recommended"
+            elif m['filename'] == model_catalog.SW_FOUR_STEM:
+                name += '   ★ recommended for 4 stems'
             disk = "✓" if m["filename"] in self.downloaded else ""
             self.tree.insert("", "end", iid=m["filename"],
                              values=(name, stems, sdr, disk))
@@ -1003,6 +1044,10 @@ class SeparatorApp:
     def _apply_filter(self):
         term = self.search_var.get().strip().lower()
         items = self.models
+        if self.four_stems_var.get():
+            items = [m for m in items if stem_count(m) == 4
+                     and {s.lower() for s in m['stems']} == {'bass', 'drums', 'other', 'vocals'}]
+            items = sorted(items, key=lambda m: m['filename'] != model_catalog.SW_FOUR_STEM)
         if term:
             items = [
                 m for m in items
@@ -1105,6 +1150,11 @@ class SeparatorApp:
         downloaded = row in self.downloaded
         state = "normal" if downloaded else "disabled"
         menu = tk.Menu(self.tree, tearoff=0)
+        menu.add_command(label='Quality and model details…', command=lambda: self._model_details(row))
+        source = (self.model_by_file.get(row) or {}).get('source_url')
+        if source:
+            menu.add_command(label='Open model source', command=lambda: webbrowser.open(source))
+        menu.add_separator()
         menu.add_command(label="Reveal in Finder", state=state,
                          command=lambda: self._reveal_model(row))
         menu.add_command(label="Delete download", state=state,
@@ -1113,6 +1163,21 @@ class SeparatorApp:
             menu.tk_popup(evt.x_root, evt.y_root)
         finally:
             menu.grab_release()
+
+    def _model_details(self, filename):
+        model = self.model_by_file[filename]
+        lines = [model['friendly'], '', 'Stems: ' + ', '.join(model['stems']),
+                 'Benchmark: ' + (model['bench'] if model.get('scores') else 'No verified SDR published')]
+        lines += [f'{stem}: {metrics["SDR"]:.4f} dB' for stem, metrics in model['scores'].items()
+                  if isinstance(metrics, dict) and isinstance(metrics.get('SDR'), (int, float))]
+        if model.get('score_notes'):
+            lines += ['', model['score_notes']]
+        if model.get('updated'):
+            lines += ['', 'Repository updated: ' + model['updated'][:10]]
+        for label, key in [('Model source', 'source_url'), ('Score source', 'score_source')]:
+            if model.get(key):
+                lines += ['', label + ': ' + model[key]]
+        messagebox.showinfo('Model details', '\n'.join(lines), parent=self.root)
 
     def _reveal_model(self, filename):
         # A Demucs model's own filename is its yaml, so fall back to the first
@@ -1134,6 +1199,7 @@ class SeparatorApp:
         if m is None:
             return [MODEL_DIR / filename]
         shared = {f for other in self.models if other["filename"] != filename
+                  and not ({filename, other['filename']} == {model_catalog.SW_FOUR_STEM, 'BS-Roformer-SW.ckpt'})
                   for f in other.get("files") or []}
         paths = [MODEL_DIR / f for f in m["files"] if f not in shared]
         if m["arch"] == "Demucs":
@@ -1279,6 +1345,7 @@ class SeparatorApp:
                         self.status_var.set(text[:120])
                         self._update_progress(text)
                 elif kind == "models_loaded":
+                    self._models_loading = False
                     self.models = payload
                     self.model_by_file = {m["filename"]: m for m in payload}
                     self._scan_downloaded()
@@ -1294,9 +1361,13 @@ class SeparatorApp:
                     self.status_var.set(f"{len(payload)} models available.")
                     self._update_run_state()
                 elif kind == "models_error":
+                    self._models_loading = False
                     self.refresh_btn.configure(state="normal")
                     self.status_var.set("Could not load models.")
                     self._log(f"Model list error: {payload}\n")
+                elif kind == 'catalog_warning':
+                    self.status_var.set(str(payload).split('. ')[0])
+                    self._log(f'Catalog: {payload}\n')
                 elif kind == "update_result":
                     self._update_checking = False
                     res = payload

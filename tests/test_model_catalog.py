@@ -33,6 +33,9 @@ class ModelCatalogTests(unittest.TestCase):
             self.addCleanup(mock.stop)
         self.gui = app.SeparatorApp.__new__(app.SeparatorApp)
         self.gui.q = queue.Queue()
+        mock = patch.object(app.model_catalog, 'load_state', return_value={})
+        mock.start()
+        self.addCleanup(mock.stop)
 
     def load_catalog(self):
         result = SimpleNamespace(stdout=json.dumps(CATALOG))

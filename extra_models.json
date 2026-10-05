@@ -6,9 +6,16 @@
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_roformer_leap_voc.ckpt",
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_leap_voc_conf.yaml"
     ],
-    "stems": ["vocals", "other"],
+    "stems": [
+      "vocals",
+      "other"
+    ],
     "target_stem": "vocals",
-    "scores": {"vocals": {"SDR": 11.7398}},
+    "scores": {
+      "vocals": {
+        "SDR": 11.7398
+      }
+    },
     "benchmark": "MVSEP"
   },
   "Roformer Model: BS Roformer | Leap Instrumental by unwa": {
@@ -18,7 +25,10 @@
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_roformer_leap_inst.ckpt",
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/bs_leap_inst_conf.yaml"
     ],
-    "stems": ["vocals", "other"],
+    "stems": [
+      "vocals",
+      "other"
+    ],
     "target_stem": "other"
   },
   "Roformer Model: BS Roformer | Leap Xe Vocals by unwa": {
@@ -28,9 +38,16 @@
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/Xe/bs_leap_xe_voc.ckpt",
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/Xe/leap_xe_config_voc.yaml"
     ],
-    "stems": ["vocals", "other"],
+    "stems": [
+      "vocals",
+      "other"
+    ],
     "target_stem": "vocals",
-    "scores": {"vocals": {"SDR": 11.7577}},
+    "scores": {
+      "vocals": {
+        "SDR": 11.7577
+      }
+    },
     "benchmark": "MVSEP"
   },
   "Roformer Model: BS Roformer | Leap Xe Instrumental by unwa": {
@@ -40,7 +57,10 @@
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/Xe/bs_leap_xe_inst.ckpt",
       "https://huggingface.co/pcunwa/BS-Roformer-Leap/resolve/main/Xe/leap_xe_config_inst.yaml"
     ],
-    "stems": ["vocals", "other"],
+    "stems": [
+      "vocals",
+      "other"
+    ],
     "target_stem": "other"
   },
   "Roformer Model: MelBand Roformer | Big Beta 7 by unwa": {
@@ -50,7 +70,10 @@
       "https://huggingface.co/pcunwa/Mel-Band-Roformer-big/resolve/main/big_beta7.ckpt",
       "https://huggingface.co/pcunwa/Mel-Band-Roformer-big/resolve/main/big_beta7.yaml"
     ],
-    "stems": ["vocals", "other"],
+    "stems": [
+      "vocals",
+      "other"
+    ],
     "target_stem": "vocals"
   },
   "Roformer Model: MelBand Roformer | Deux by becruily": {
@@ -60,9 +83,19 @@
       "https://huggingface.co/becruily/mel-band-roformer-deux/resolve/main/becruily_deux.ckpt",
       "https://huggingface.co/becruily/mel-band-roformer-deux/resolve/main/config_deux_becruily.yaml"
     ],
-    "stems": ["vocals", "instrumental"],
+    "stems": [
+      "vocals",
+      "instrumental"
+    ],
     "target_stem": null,
-    "scores": {"vocals": {"SDR": 11.3695}, "instrumental": {"SDR": 17.5466}},
+    "scores": {
+      "vocals": {
+        "SDR": 11.3695
+      },
+      "instrumental": {
+        "SDR": 17.5466
+      }
+    },
     "benchmark": "MVSEP"
   },
   "Roformer Model: MelBand Roformer | Guitar by becruily": {
@@ -72,7 +105,10 @@
       "https://huggingface.co/becruily/mel-band-roformer-guitar/resolve/main/becruily_guitar.ckpt",
       "https://huggingface.co/becruily/mel-band-roformer-guitar/resolve/main/config_guitar_becruily.yaml"
     ],
-    "stems": ["guitar", "other"],
+    "stems": [
+      "guitar",
+      "other"
+    ],
     "target_stem": "guitar"
   },
   "Roformer Model: BS Roformer | Karaoke by Frazer & becruily": {
@@ -82,7 +118,10 @@
       "https://huggingface.co/becruily/bs-roformer-karaoke/resolve/main/bs_roformer_karaoke_frazer_becruily.ckpt",
       "https://huggingface.co/becruily/bs-roformer-karaoke/resolve/main/config_karaoke_frazer_becruily.yaml"
     ],
-    "stems": ["vocals", "instrumental"],
+    "stems": [
+      "vocals",
+      "instrumental"
+    ],
     "target_stem": "vocals"
   },
   "Roformer Model: MelBand Roformer | INSTV9 by Gabox": {
@@ -92,7 +131,10 @@
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/experimental/INSTV9.ckpt",
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/instrumental/inst_gabox.yaml"
     ],
-    "stems": ["instrumental", "vocals"],
+    "stems": [
+      "instrumental",
+      "vocals"
+    ],
     "target_stem": "instrumental"
   },
   "Roformer Model: MelBand Roformer | INSTV10 by Gabox": {
@@ -102,7 +144,10 @@
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/experimental/INSTV10.ckpt",
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/instrumental/inst_gabox.yaml"
     ],
-    "stems": ["instrumental", "vocals"],
+    "stems": [
+      "instrumental",
+      "vocals"
+    ],
     "target_stem": "instrumental"
   },
   "Roformer Model: MelBand Roformer | Instrumental FV9 by Gabox": {
@@ -112,7 +157,10 @@
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/instrumental/Inst_GaboxFv9.ckpt",
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/instrumental/inst_gabox.yaml"
     ],
-    "stems": ["instrumental", "vocals"],
+    "stems": [
+      "instrumental",
+      "vocals"
+    ],
     "target_stem": "instrumental"
   },
   "Roformer Model: MelBand Roformer | Vocals FV7 by Gabox": {
@@ -122,9 +170,16 @@
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/vocals/voc_fv7.ckpt",
       "https://huggingface.co/GaboxR67/MelBandRoformers/resolve/main/melbandroformers/vocals/v7.yaml"
     ],
-    "stems": ["vocals", "instrumental"],
+    "stems": [
+      "vocals",
+      "instrumental"
+    ],
     "target_stem": "vocals",
-    "scores": {"vocals": {"SDR": 10.9634}},
+    "scores": {
+      "vocals": {
+        "SDR": 10.9634
+      }
+    },
     "benchmark": "MVSEP"
   },
   "Roformer Model: MelBand Roformer | 4-Stem Large by Aname": {
@@ -134,10 +189,27 @@
       "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/mel_band_roformer_4stems_large_ver1.ckpt",
       "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/config_large.yaml"
     ],
-    "stems": ["drums", "bass", "other", "vocals"],
+    "stems": [
+      "drums",
+      "bass",
+      "other",
+      "vocals"
+    ],
     "target_stem": null,
-    "scores": {"drums": {"SDR": 9.3964}, "bass": {"SDR": 9.7225},
-               "other": {"SDR": 5.1131}, "vocals": {"SDR": 8.6491}},
+    "scores": {
+      "drums": {
+        "SDR": 9.3964
+      },
+      "bass": {
+        "SDR": 9.7225
+      },
+      "other": {
+        "SDR": 5.1131
+      },
+      "vocals": {
+        "SDR": 8.6491
+      }
+    },
     "benchmark": "MVSEP"
   },
   "Roformer Model: MelBand Roformer | 4-Stem XL by Aname": {
@@ -147,10 +219,76 @@
       "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/mel_band_roformer_4stems_xl_ver1.ckpt",
       "https://huggingface.co/Aname-Tommy/melbandroformer4stems/resolve/main/config_xl.yaml"
     ],
-    "stems": ["drums", "bass", "other", "vocals"],
+    "stems": [
+      "drums",
+      "bass",
+      "other",
+      "vocals"
+    ],
     "target_stem": null,
-    "scores": {"drums": {"SDR": 9.3651}, "bass": {"SDR": 9.8276},
-               "other": {"SDR": 5.3073}, "vocals": {"SDR": 8.5684}},
+    "scores": {
+      "drums": {
+        "SDR": 9.3651
+      },
+      "bass": {
+        "SDR": 9.8276
+      },
+      "other": {
+        "SDR": 5.3073
+      },
+      "vocals": {
+        "SDR": 8.5684
+      }
+    },
     "benchmark": "MVSEP"
+  },
+  "Roformer Model: BS Roformer | MUSDB18HQ 4-Stem by ZFTurbo": {
+    "filename": "model_bs_roformer_ep_17_sdr_9.6568.ckpt",
+    "config": "config_bs_roformer_384_8_2_485100.yaml",
+    "urls": [
+      "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/download/v1.0.12/model_bs_roformer_ep_17_sdr_9.6568.ckpt",
+      "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/download/v1.0.12/config_bs_roformer_384_8_2_485100.yaml"
+    ],
+    "stems": [
+      "drums",
+      "bass",
+      "other",
+      "vocals"
+    ],
+    "target_stem": null,
+    "scores": {
+      "bass": {
+        "SDR": 8.48
+      },
+      "drums": {
+        "SDR": 11.61
+      },
+      "vocals": {
+        "SDR": 11.08
+      },
+      "other": {
+        "SDR": 7.44
+      }
+    },
+    "benchmark": "MUSDB test",
+    "score_source": "https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md",
+    "source_url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/tag/v1.0.12"
+  },
+  "Roformer Model: BS Roformer | 4-Stem FT by SYH": {
+    "filename": "bs_roformer_4stems_ft.pth",
+    "config": "config_bs_roformer_4stems_syh.yaml",
+    "urls": [
+      "https://huggingface.co/SYH99999/bs_roformer_4stems_ft/resolve/4502cc033600fed252c370857f2452518e137047/bs_roformer_4stems_ft.pth",
+      "https://huggingface.co/SYH99999/bs_roformer_4stems_ft/resolve/4502cc033600fed252c370857f2452518e137047/config.yaml"
+    ],
+    "stems": [
+      "drums",
+      "bass",
+      "other",
+      "vocals"
+    ],
+    "target_stem": null,
+    "source_url": "https://huggingface.co/SYH99999/bs_roformer_4stems_ft",
+    "catalog_download": true
   }
 }
