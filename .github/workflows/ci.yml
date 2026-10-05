@@ -17,3 +17,5 @@ jobs:
         run: python -m py_compile app.py runner.py main_bundle.py bundle_fix_record.py
       - name: Syntax-check shell scripts
         run: bash -n build.sh setup.sh build_bundle.sh
+      - name: Test model catalog and downloads
+        run: python -m unittest discover -s tests -v

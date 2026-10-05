@@ -1,0 +1,2 @@
+# Shared by source setup and release builds; includes ZFTurbo Vocals v1.
+mlx-audio-separator[convert]==0.1.20

@@ -32,6 +32,8 @@ upload your music. This app does the same job on your own Mac:
   MDX23C / Demucs models used by the stem-separation community, plus a curated
   set of newer 2025–2026 community releases (unwa Leap and Big Beta 7,
   becruily Deux and Guitar, Gabox INSTV9/V10, 4-stem Mel-Band RoFormers).
+  ZFTurbo Mel-Band-RoFormer Vocals v1 is included using its native MLX
+  weights and produces vocals and instrumental stems.
   Click any column to sort — by quality (SDR), or by *Stems* to bring the
   models that split into the most tracks to the top. Models download
   automatically on first use.
@@ -140,6 +142,11 @@ Build the distributable bundle yourself:
 ./build_bundle.sh    # → dist/MLX-Audio-Separator-<ver>-macos-arm64.zip
 ```
 
+Source setup and release builds install the engine version pinned in
+`requirements-engine.txt` (currently 0.1.20). The bundle build updates its
+environment before packaging so an older local engine cannot silently omit
+new models. Set `MLX_SEPARATOR_VENV` to build with a separate environment.
+
 Run from source (after `./setup.sh`):
 
 ```bash
@@ -148,7 +155,8 @@ Run from source (after `./setup.sh`):
 
 The app talks to the engine exclusively through the `mlx-audio-separator` CLI
 (`--list_models --list_format json` for the catalog, one subprocess per
-separation run), so engine upgrades are just `pip install -U` in the venv.
+separation run). After changing the engine pin, bump `MODELS_REV` in `app.py`
+so existing installs refresh their cached catalog.
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -10,7 +10,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="MLX Audio Separator"
-VENV="$HOME/.venvs/mlx-audio-separator"
+VENV="${MLX_SEPARATOR_VENV:-$HOME/.venvs/mlx-audio-separator}"
 PY="$VENV/bin/python"
 PYI="$VENV/bin/pyinstaller"
 BUNDLE_ID="com.rewon.mlxaudioseparator"
@@ -32,6 +32,9 @@ if [[ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" != "1" ]]; then
   exit 1
 fi
 [[ -x "$PYI" ]] || { echo "ERROR: PyInstaller not found. Run: $VENV/bin/pip install pyinstaller" >&2; exit 1; }
+
+echo "==> Install the release engine (including ZFTurbo Vocals v1)"
+"$PY" -m pip install --upgrade -r "$HERE/requirements-engine.txt"
 
 echo "==> Render icon"
 rm -rf "$WORK"; mkdir -p "$WORK"
@@ -109,7 +112,7 @@ PLIST="$APP/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $VERSION" "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$PLIST" 2>/dev/null || \
   /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $VERSION" "$PLIST"
-# MLX 0.31.2 (and mlx-audio-io, which pins it) ships macOS-15-only wheels, so
+# MLX 0.32.3 ships macOS-15-only wheels, so
 # the bundled engine dylibs are built minos 15.0. Declaring the true minimum
 # makes macOS refuse launch on older systems with a clear dialog instead of the
 # app opening and crashing the moment it loads a model.

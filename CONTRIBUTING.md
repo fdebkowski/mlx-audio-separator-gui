@@ -38,12 +38,13 @@ its output the same way — click through a real separation.
 
 ## Checks
 
-There's no test suite (it's a Tkinter app); CI just compiles the sources.
+CI compiles the sources and runs headless model-catalog regression tests.
 Before opening a PR:
 
 ```bash
 ~/.venvs/mlx-audio-separator/bin/python -m py_compile app.py runner.py
-bash -n build.sh setup.sh
+~/.venvs/mlx-audio-separator/bin/python -m unittest discover -s tests -v
+bash -n build.sh setup.sh build_bundle.sh
 ```
 
 …and click through a real separation run.
