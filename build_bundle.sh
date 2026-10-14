@@ -27,14 +27,16 @@ FFMPEG_SHA256="a90e3db6a3fd35f6074b013f948b1aa45b31c6375489d39e572bea3f18336584"
 FFPROBE_SHA256="bb2db6f5d8cef919da12fbf592119a987202a8c060a886f3cab091f9cab90b64"
 FF_CACHE="$HERE/.cache/ffmpeg"   # persists across builds (WORK is wiped each run)
 
-if [[ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" != "1" ]]; then
+if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   echo "ERROR: The bundle must be built on Apple Silicon (MLX is arm64-only)." >&2
   exit 1
 fi
 [[ -x "$PYI" ]] || { echo "ERROR: PyInstaller not found. Run: $VENV/bin/pip install pyinstaller" >&2; exit 1; }
 
 echo "==> Install the release engine (including ZFTurbo Vocals v1)"
-"$PY" -m pip install --upgrade -r "$HERE/requirements-engine.txt"
+"$PY" -m pip install --upgrade -r "$HERE/requirements-engine.txt" -c "$HERE/constraints-release.txt"
+"$PY" -m pip check
+"$PY" -c 'import platform, tkinter; assert platform.machine() == "arm64", "Use a native arm64 Python"'
 
 echo "==> Render icon"
 rm -rf "$WORK"; mkdir -p "$WORK"
@@ -64,6 +66,11 @@ arch -arm64 "$PYI" \
   --collect-all mlx_audio_io \
   --collect-all mlx_spectro \
   --collect-all certifi \
+  --copy-metadata PyYAML \
+  --copy-metadata lameenc \
+  --copy-metadata torch \
+  --copy-metadata onnx \
+  --copy-metadata demucs \
   --add-data "$HERE/vendor/tkdnd:vendor/tkdnd" \
   --add-data "$HERE/extra_models.json:." \
   --add-data "$HERE/score_overrides.json:." \
@@ -71,6 +78,7 @@ arch -arm64 "$PYI" \
   --hidden-import lameenc \
   --hidden-import runner \
   --hidden-import app \
+  --hidden-import bundle_check \
   "$HERE/main_bundle.py"
 
 APP="$DIST/$APP_NAME.app"
@@ -123,13 +131,14 @@ PLIST="$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.music" "$PLIST" 2>/dev/null || true
 
 echo "==> Ad-hoc codesign (deep: finalizes every nested binary's signature)"
-codesign --force --deep --sign - --timestamp=none "$APP" >/dev/null 2>&1 || echo "   (codesign warning ignored)"
+codesign --force --deep --sign - --timestamp=none "$APP"
 
 echo "==> Repair mlx_audio_io RECORD hash (PyInstaller rewrote the binary)"
 "$PY" "$HERE/bundle_fix_record.py" "$APP"
 
 echo "==> Re-seal app bundle (non-deep: keeps the patched .so bytes intact)"
-codesign --force --sign - --timestamp=none "$APP" >/dev/null 2>&1 || echo "   (codesign warning ignored)"
+codesign --force --sign - --timestamp=none "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
 
 echo "==> Zip for release"
 ZIP="$DIST/MLX-Audio-Separator-$VERSION-macos-arm64.zip"

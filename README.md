@@ -155,6 +155,11 @@ Build the distributable bundle yourself:
 ./build_bundle.sh    # → dist/MLX-Audio-Separator-<ver>-macos-arm64.zip
 ```
 
+For a clean build, extracted-ZIP validation and gated GitHub publication, see
+[Releasing](docs/releasing.md). Release builds use the native dependency pins
+in `constraints-release.txt`; the workflow records resolved dependencies and
+checks real MLX separation before making an application ZIP public.
+
 Source setup and release builds install the engine version pinned in
 `requirements-engine.txt` (currently 0.1.20). The bundle build updates its
 environment before packaging so an older local engine cannot silently omit

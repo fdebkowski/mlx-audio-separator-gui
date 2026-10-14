@@ -1,0 +1,5 @@
+# macOS arm64, CPython 3.13.7.
+-r requirements-engine.txt
+-c constraints-release.txt
+pyinstaller
+lameenc

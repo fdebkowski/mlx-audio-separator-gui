@@ -1,0 +1,138 @@
+name: macOS release
+
+on:
+  push:
+    branches: ['codex/release-*', 'release/v*']
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish after all bundle and separation checks pass
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # macos-15 is arm64. An Intel runner cannot package the native MLX engine.
+    # If Metal is unavailable, use a physical self-hosted Apple Silicon runner;
+    # do not skip the separation checks to publish from a VM.
+    runs-on: macos-15
+    timeout-minutes: 90
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.7'
+          architecture: arm64
+      - name: Check architecture, Python and release version
+        id: version
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          python - <<'PY'
+          import ast, os, platform, tkinter
+          from pathlib import Path
+          assert platform.machine() == 'arm64'
+          values = [n.value.value for n in ast.parse(Path('app.py').read_text()).body
+                    if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'APP_VERSION' for t in n.targets)]
+          version, = values
+          ref = os.environ['REF']
+          if ref.startswith('refs/tags/'):
+              assert ref == f'refs/tags/v{version}', 'Tag must match APP_VERSION'
+          if ref.startswith('refs/heads/release/'):
+              assert ref == f'refs/heads/release/v{version}', 'Release branch must match APP_VERSION'
+          assert Path(f'docs/releases/v{version}.md').is_file()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'version={version}\n')
+          PY
+      - name: Install pinned build dependencies in a clean environment
+        run: |
+          python -m venv "$RUNNER_TEMP/mlx-release-venv"
+          "$RUNNER_TEMP/mlx-release-venv/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/mlx-release-venv/bin/python" -m pip install -r requirements-build.txt
+          "$RUNNER_TEMP/mlx-release-venv/bin/python" -m pip check
+          mkdir -p dist
+          "$RUNNER_TEMP/mlx-release-venv/bin/python" -m pip freeze --all > dist/build-requirements.txt
+      - name: Compile, syntax-check and run headless regression tests
+        run: |
+          "$RUNNER_TEMP/mlx-release-venv/bin/python" -m compileall -q app.py runner.py model_catalog.py main_bundle.py bundle_check.py bundle_fix_record.py scripts tests
+          bash -n build.sh setup.sh build_bundle.sh
+          "$RUNNER_TEMP/mlx-release-venv/bin/python" -m unittest discover -s tests -v
+      - name: Build and sign the application
+        env:
+          MLX_SEPARATOR_VENV: ${{ runner.temp }}/mlx-release-venv
+        run: ./build_bundle.sh
+      - name: Validate the extracted ZIP and run native separations
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python scripts/verify_bundle.py "dist/MLX-Audio-Separator-$VERSION-macos-arm64.zip" \
+            --version "$VERSION" --report dist/validation.json
+          git rev-parse HEAD > dist/source-commit.txt
+          sw_vers > dist/build-platform.txt
+          cd dist
+          shasum -a 256 "MLX-Audio-Separator-$VERSION-macos-arm64.zip" > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-${{ steps.version.outputs.version }}
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS
+            dist/validation.json
+            dist/build-requirements.txt
+            dist/source-commit.txt
+            dist/build-platform.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: build
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      startsWith(github.ref, 'refs/heads/release/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-arm64-${{ needs.build.outputs.version }}
+          path: release-artifacts
+      - name: Publish only after the uploaded ZIP checksum matches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SOURCE_SHA: ${{ github.sha }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd release-artifacts
+          sha256sum -c SHA256SUMS
+          test "$(cat source-commit.txt)" = "$SOURCE_SHA"
+          # Never replace an existing public release or its assets.
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release already exists; inspect it before resuming." >&2
+            exit 1
+          fi
+          gh release create "v$VERSION" --target "$SOURCE_SHA" --draft \
+            --title "MLX Audio Separator v$VERSION" \
+            --notes-file "../docs/releases/v$VERSION.md" \
+            "MLX-Audio-Separator-$VERSION-macos-arm64.zip" SHA256SUMS validation.json \
+            build-requirements.txt source-commit.txt build-platform.txt
+          mkdir uploaded
+          gh release download "v$VERSION" --pattern '*.zip' --dir uploaded
+          cp SHA256SUMS uploaded/
+          (cd uploaded && sha256sum -c SHA256SUMS)
+          gh release edit "v$VERSION" --draft=false --latest
+          gh release view "v$VERSION" --json url,isDraft,assets
