@@ -51,6 +51,11 @@ def version_tuple(value):
     return tuple(int(part) for part in value.split('.')) + (0,) * (3 - len(value.split('.')))
 
 
+def sha256(path):
+    with path.open('rb') as handle:
+        return hashlib.file_digest(handle, 'sha256').hexdigest()
+
+
 def inspect_binaries(app):
     paths = []
     for path in app.rglob('*'):
@@ -124,12 +129,12 @@ def inspect_audio(path, ffmpeg, ffprobe, env):
 def validate(archive, version):
     if platform.system() != 'Darwin' or platform.machine() != 'arm64':
         raise RuntimeError('Validation requires native Apple Silicon macOS 15+ with Metal')
-    report = {'version': version, 'zip_sha256': hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest(),
+    report = {'version': version, 'zip_sha256': sha256(archive),
               'platform': platform.platform(), 'separations': {}}
     with tempfile.TemporaryDirectory(prefix='mlx-release-') as temporary:
         work = Path(temporary)
         run(['/usr/bin/ditto', '-x', '-k', archive, work / 'extracted'])
-        app = work / 'extracted' / 'MLX Audio Separator.app'
+        app = (work / 'extracted' / 'MLX Audio Separator.app').resolve()
         plist = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
         for key in ('CFBundleShortVersionString', 'CFBundleVersion'):
             if plist[key] != version:
@@ -201,7 +206,7 @@ def validate(archive, version):
                 if other['decoded_sha256'] != stems['other']['decoded_sha256']:
                     raise RuntimeError('SW Other-only differs from the four-stem Other output')
                 report['sw_other_only_matches'] = True
-        report['model_files'] = {str(p.relative_to(models)): hashlib.file_digest(p.open('rb'), 'sha256').hexdigest()
+        report['model_files'] = {str(p.relative_to(models)): sha256(p)
                                  for p in models.rglob('*') if p.is_file()}
     return report
 
