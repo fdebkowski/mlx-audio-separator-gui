@@ -1,0 +1,14 @@
+# Keep the tested native ABI and packaging versions together.
+mlx-audio-separator==0.1.20
+mlx==0.32.3
+mlx-audio-io==1.3.23
+mlx-spectro==0.9.10
+numpy==2.3.3
+torch==2.8.0
+torchaudio==2.8.0
+onnx==1.19.0
+demucs==4.0.1
+PyYAML==6.0.3
+certifi==2025.8.3
+lameenc==1.8.1
+pyinstaller==6.16.0

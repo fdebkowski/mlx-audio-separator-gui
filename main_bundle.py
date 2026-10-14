@@ -14,6 +14,9 @@ import sys
 
 
 def _main():
+    if sys.argv[1:] == ["--bundle-check"]:
+        import bundle_check
+        sys.exit(bundle_check.main())
     if len(sys.argv) > 1 and sys.argv[1] == "--separator-runner":
         # Present the remaining args as if runner.py was invoked directly.
         sys.argv = [sys.argv[0]] + sys.argv[2:]
