@@ -178,6 +178,30 @@ so existing installs refresh their cached catalog.
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Acapella/instrumental and four-stem models
+
+For acapella + instrumental, search for **HyperACE v2** (separate vocal and
+instrumental specialist checkpoints) or **Deux** (MelBand Roformer). Both
+HyperACE variants save vocals and instrumental; the complementary output is
+the original mixture minus the predicted target.
+
+For drums + bass + vocals + remaining instruments, use the **4 stems** filter:
+
+- **BS Roformer SW | 4-Stem** uses MLX and combines guitar + piano + other
+  before encoding. The six-stem and four-stem entries share one model download.
+- **SCNet XL IHF | 4-Stem** predicts drums, bass, other and vocals directly.
+  “Other” is the instruments remaining after drums, bass and vocals.
+
+**HyperACE v2 and SCNet XL IHF use a PyTorch CPU compatibility backend**, shown
+as “CPU (slower)” in the list and in model details. They are not MLX accelerated.
+The source setup and app build include that backend; no separate service or
+account is needed. Existing Deux and SW models keep their MLX execution path.
+Weights download on first use and retain their authors' licensing terms.
+
+The adapters reuse the engine's file-format support and single-stem selector.
+They use reviewed code shipped with the app, never downloaded Python scripts.
+See [adapter provenance](engine_adapters/README.md) for pinned source revisions.
+
 ## Credits
 
 - [mlx-audio-separator](https://github.com/ssmall256/mlx-audio-separator) by

@@ -1,0 +1,82 @@
+{
+  "Roformer Model: BS Roformer | HyperACE v2 Vocals by unwa": {
+    "filename": "bs_roformer_voc_hyperacev2.ckpt",
+    "config": "hyperace_v2_voc.yaml",
+    "urls": [
+      "https://huggingface.co/pcunwa/BS-Roformer-HyperACE/resolve/5b1f8283125d5e4a3614d0e3635a636e09c84059/v2_voc/bs_roformer_voc_hyperacev2.ckpt",
+      "https://huggingface.co/pcunwa/BS-Roformer-HyperACE/resolve/5b1f8283125d5e4a3614d0e3635a636e09c84059/v2_voc/config.yaml"
+    ],
+    "stems": [
+      "vocals",
+      "instrumental"
+    ],
+    "target_stem": "vocals",
+    "scores": {
+      "vocals": {
+        "SDR": 11.3957
+      }
+    },
+    "benchmark": "MVSEP",
+    "score_source": "https://mvsep.com/quality_checker/entry/9470",
+    "source_url": "https://huggingface.co/pcunwa/BS-Roformer-HyperACE",
+    "backend": "PyTorch CPU",
+    "score_notes": "Uses the reviewed HyperACE v2 implementation on CPU. Both acapella and instrumental are saved; the complementary stem is derived from the mixture. No MLX acceleration."
+  },
+  "Roformer Model: BS Roformer | HyperACE v2 Instrumental by unwa": {
+    "filename": "bs_roformer_inst_hyperacev2.ckpt",
+    "config": "hyperace_v2_inst.yaml",
+    "urls": [
+      "https://huggingface.co/pcunwa/BS-Roformer-HyperACE/resolve/5b1f8283125d5e4a3614d0e3635a636e09c84059/v2_inst/bs_roformer_inst_hyperacev2.ckpt",
+      "https://huggingface.co/pcunwa/BS-Roformer-HyperACE/resolve/5b1f8283125d5e4a3614d0e3635a636e09c84059/v2_inst/config.yaml"
+    ],
+    "stems": [
+      "vocals",
+      "instrumental"
+    ],
+    "target_stem": "instrumental",
+    "scores": {
+      "instrumental": {
+        "SDR": 17.4007
+      }
+    },
+    "benchmark": "MVSEP",
+    "score_source": "https://mvsep.com/quality_checker/entry/9475",
+    "source_url": "https://huggingface.co/pcunwa/BS-Roformer-HyperACE",
+    "backend": "PyTorch CPU",
+    "score_notes": "Uses the reviewed HyperACE v2 implementation on CPU. Both acapella and instrumental are saved; the complementary stem is derived from the mixture. No MLX acceleration."
+  },
+  "SCNet Model: SCNet XL IHF | 4-Stem by ZFTurbo": {
+    "filename": "model_scnet_ep_36_sdr_10.0891.ckpt",
+    "config": "config_musdb18_scnet_xl_more_wide_v5.yaml",
+    "urls": [
+      "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/download/v1.0.15/model_scnet_ep_36_sdr_10.0891.ckpt",
+      "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/download/v1.0.15/config_musdb18_scnet_xl_more_wide_v5.yaml"
+    ],
+    "stems": [
+      "drums",
+      "bass",
+      "other",
+      "vocals"
+    ],
+    "target_stem": null,
+    "scores": {
+      "bass": {
+        "SDR": 9.23
+      },
+      "drums": {
+        "SDR": 11.81
+      },
+      "vocals": {
+        "SDR": 11.42
+      },
+      "other": {
+        "SDR": 7.88
+      }
+    },
+    "benchmark": "MUSDB test",
+    "score_source": "https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md",
+    "source_url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/tag/v1.0.15",
+    "backend": "PyTorch CPU",
+    "score_notes": "Trained only on MUSDB18HQ. Scores describe the published checkpoint, not a new benchmark of this adapter. Uses CPU; Other contains the remaining instruments."
+  }
+}

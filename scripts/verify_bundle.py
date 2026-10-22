@@ -25,6 +25,10 @@ MODELS = {
     'model_bs_roformer_ep_17_sdr_9.6568.ckpt': {'vocals', 'drums', 'bass', 'other'},
     'bs_roformer_4stems_ft.pth': {'vocals', 'drums', 'bass', 'other'},
     'BS-Roformer-SW-4stem': {'vocals', 'drums', 'bass', 'other'},
+    'becruily_deux.ckpt': {'vocals', 'instrumental'},
+    'bs_roformer_voc_hyperacev2.ckpt': {'vocals', 'instrumental'},
+    'bs_roformer_inst_hyperacev2.ckpt': {'vocals', 'instrumental'},
+    'model_scnet_ep_36_sdr_10.0891.ckpt': {'vocals', 'drums', 'bass', 'other'},
 }
 MACHO = {b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe', b'\xfe\xed\xfa\xcf',
          b'\xfe\xed\xfa\xce', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca',

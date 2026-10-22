@@ -1,2 +1,4 @@
 # Shared by source setup and release builds; includes ZFTurbo Vocals v1.
 mlx-audio-separator[convert]==0.1.20
+# Reviewed HyperACE v2 model implementation and generic overlap-add inference.
+bs-roformer-infer @ git+https://github.com/openmirlab/bs-roformer-infer.git@95c8de7b0b091d00f064d694bf916a21866c32f5

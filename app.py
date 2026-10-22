@@ -44,7 +44,7 @@ UPDATE_CHECK_INTERVAL = 24 * 3600  # auto-check at most once a day
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
 # Bump when the engine or curated extra_models.json changes so existing
 # installs drop their cached model index and pick up the additions.
-MODELS_REV = 6
+MODELS_REV = 7
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
 # Configs/metadata that ride along with a model download. A few KB each and
 # re-fetched on demand, so they don't decide whether a model counts as
@@ -1004,6 +1004,7 @@ class SeparatorApp:
                     "friendly": friendly,
                     "filename": fn,
                     "arch": arch,
+                    "backend": info.get('backend', 'MLX'),
                     "stems": info.get("stems") or [],
                     "sdr": sdr,
                     "bench": info.get("benchmark") or DEFAULT_BENCH,
@@ -1030,6 +1031,8 @@ class SeparatorApp:
             names = ", ".join(m["stems"]) or "vocals, instrumental"
             stems = f"{stem_count(m)} · {names}"
             name = m["friendly"]
+            if m.get('backend') == 'PyTorch CPU':
+                name += '   · CPU (slower)'
             if m["filename"] == DEFAULT_MODEL:
                 name += "   ★ recommended"
             elif m['filename'] == model_catalog.SW_FOUR_STEM:
@@ -1167,6 +1170,7 @@ class SeparatorApp:
     def _model_details(self, filename):
         model = self.model_by_file[filename]
         lines = [model['friendly'], '', 'Stems: ' + ', '.join(model['stems']),
+                 'Backend: ' + model.get('backend', 'MLX'),
                  'Benchmark: ' + (model['bench'] if model.get('scores') else 'No verified SDR published')]
         lines += [f'{stem}: {metrics["SDR"]:.4f} dB' for stem, metrics in model['scores'].items()
                   if isinstance(metrics, dict) and isinstance(metrics.get('SDR'), (int, float))]

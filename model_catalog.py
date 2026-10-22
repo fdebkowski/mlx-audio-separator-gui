@@ -28,6 +28,11 @@ MODELS_URL = 'https://raw.githubusercontent.com/nomadkaraoke/python-audio-separa
 UVR_URL = 'https://raw.githubusercontent.com/TRvlvr/application_data/main/filelists/download_checks.json'
 AUTHORS = ('becruily', 'pcunwa', 'GaboxR67', 'Aname-Tommy', 'anvuew', 'SYH99999', 'Sucial')
 SW_FOUR_STEM = 'BS-Roformer-SW-4stem'
+COMPAT_MODELS = {
+    'bs_roformer_voc_hyperacev2.ckpt': 'hyperace_v2',
+    'bs_roformer_inst_hyperacev2.ckpt': 'hyperace_v2',
+    'model_scnet_ep_36_sdr_10.0891.ckpt': 'scnet',
+}
 MAX_BYTES = 4 * 1024 * 1024
 
 
@@ -348,7 +353,10 @@ def refresh_sources(baseline, support=SUPPORT):
 
 
 def merged_extras(state):
-    return {**bundled_json('extra_models.json'), **state.get('extras', {})}
+    # Compatibility architectures ship with matching code. Keep them out of
+    # the remote extras feed consumed by older, MLX-only app versions.
+    return {**bundled_json('extra_models.json'), **state.get('extras', {}),
+            **bundled_json('compat_models.json')}
 
 
 def merge_catalog(grouped, state):
@@ -373,6 +381,8 @@ def merge_catalog(grouped, state):
     upstream = state.get('scores', {})
     for group in grouped.values():
         for info in group.values():
+            if info['filename'] in COMPAT_MODELS:
+                info['backend'] = 'PyTorch CPU'
             fn = info.get('source_filename', info['filename'])
             latest = upstream.get(fn, {})
             scores = valid_scores(latest.get('median_scores'))
@@ -394,8 +404,10 @@ def merge_catalog(grouped, state):
     if sw:
         sw['stems'] = ['bass', 'drums', 'other', 'vocals', 'guitar', 'piano']
         sw['config'] = 'BS-Roformer-SW.yaml'
-        release = 'https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs/'
-        sw['urls'] = [release + 'BS-Roformer-SW.ckpt', release + sw['config']]
+        # Both files are pinned to a live mirror of the same author release.
+        base = 'https://huggingface.co/enerjazzer/BS-ROFO-SW-Fixed/resolve/a443a2985534b3bc815ef54a5d446c6a0390f974/'
+        sw['urls'] = [base + 'BS-Rofo-SW-Fixed.ckpt', base + 'BS-Rofo-SW-Fixed.yaml']
+        sw['download_files'] = ['BS-Roformer-SW.ckpt', sw['config']]
         sw['source_url'] = 'https://huggingface.co/enerjazzer/BS-ROFO-SW-Fixed'
         mdxc['BS Roformer SW | 4-Stem (guitar + piano folded into other)'] = {
             **sw, 'filename': SW_FOUR_STEM, 'stems': ['bass', 'drums', 'other', 'vocals'],
