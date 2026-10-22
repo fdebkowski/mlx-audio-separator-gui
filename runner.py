@@ -138,6 +138,9 @@ def _install_extra_models_shim():
 
     def _load(self, model_filename='model_bs_roformer_ep_317_sdr_12.9755.ckpt'):
         filename = model_filename
+        if filename in catalog.COMPAT_MODELS:
+            from engine_adapters.torch_models import load_into
+            return load_into(self, filename, catalog.COMPAT_MODELS[filename])
         result = orig_load(self, filename)
         if '/' in filename:
             # Engine output filenames include model_name; source namespaces

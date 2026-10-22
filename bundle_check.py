@@ -24,6 +24,7 @@ def main():
             ('mlx_audio_io', 'mlx-audio-io'), ('mlx_spectro', 'mlx-spectro'),
             ('numpy', 'numpy'), ('yaml', 'PyYAML'), ('certifi', 'certifi'),
             ('torch', 'torch'), ('onnx', 'onnx'), ('demucs', 'demucs'),
+            ('bs_roformer', 'bs-roformer-infer'), ('ml_collections', 'ml-collections'),
             ('lameenc', 'lameenc')):
         loaded = importlib.import_module(module)
         location = Path(loaded.__file__).resolve()
@@ -33,6 +34,8 @@ def main():
             'version': importlib.metadata.version(distribution), 'path': str(location)}
     if result['dependencies']['mlx-audio-separator']['version'] != '0.1.20':
         raise RuntimeError('Unexpected separation engine version')
+    if result['dependencies']['bs-roformer-infer']['version'] != '0.1.6':
+        raise RuntimeError('Unexpected compatibility engine version')
 
     # Importing mlx_audio_io also exercises its native ABI/RECORD verification.
     import mlx.core as mx
@@ -49,7 +52,7 @@ def main():
     result['ffmpeg_directory'] = str(runner._bundled_ffmpeg_dir())
     if runner._bundled_ffmpeg_dir() is None:
         raise RuntimeError('Bundled FFmpeg missing')
-    for name in ('extra_models.json', 'score_overrides.json', 'catalog_settings.json'):
+    for name in ('extra_models.json', 'compat_models.json', 'score_overrides.json', 'catalog_settings.json'):
         data = model_catalog.bundled_json(name)
         if not data:
             raise RuntimeError(f'Missing bundled catalog data: {name}')

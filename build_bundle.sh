@@ -65,6 +65,10 @@ arch -arm64 "$PYI" \
   --collect-all mlx_audio_separator \
   --collect-all mlx_audio_io \
   --collect-all mlx_spectro \
+  --collect-all bs_roformer \
+  --collect-all engine_adapters \
+  --copy-metadata bs-roformer-infer \
+  --copy-metadata ml-collections \
   --collect-all certifi \
   --copy-metadata PyYAML \
   --copy-metadata lameenc \
@@ -73,8 +77,10 @@ arch -arm64 "$PYI" \
   --copy-metadata demucs \
   --add-data "$HERE/vendor/tkdnd:vendor/tkdnd" \
   --add-data "$HERE/extra_models.json:." \
+  --add-data "$HERE/compat_models.json:." \
   --add-data "$HERE/score_overrides.json:." \
   --add-data "$HERE/catalog_settings.json:." \
+  --add-data "$HERE/engine_adapters/scnet/LICENSE:engine_adapters/scnet" \
   --hidden-import lameenc \
   --hidden-import runner \
   --hidden-import app \

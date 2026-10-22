@@ -290,5 +290,23 @@
     "target_stem": null,
     "source_url": "https://huggingface.co/SYH99999/bs_roformer_4stems_ft",
     "catalog_download": true
+  },
+  "Roformer Model: BS Roformer | SW Fixed (6 stems)": {
+    "filename": "BS-Roformer-SW.ckpt",
+    "config": "BS-Roformer-SW.yaml",
+    "urls": [
+      "https://huggingface.co/enerjazzer/BS-ROFO-SW-Fixed/resolve/a443a2985534b3bc815ef54a5d446c6a0390f974/BS-Rofo-SW-Fixed.ckpt",
+      "https://huggingface.co/enerjazzer/BS-ROFO-SW-Fixed/resolve/a443a2985534b3bc815ef54a5d446c6a0390f974/BS-Rofo-SW-Fixed.yaml"
+    ],
+    "stems": [
+      "bass",
+      "drums",
+      "other",
+      "vocals",
+      "guitar",
+      "piano"
+    ],
+    "target_stem": null,
+    "source_url": "https://huggingface.co/enerjazzer/BS-ROFO-SW-Fixed"
   }
 }

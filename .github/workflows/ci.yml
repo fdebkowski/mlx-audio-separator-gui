@@ -16,7 +16,9 @@ jobs:
       - name: Compile Python sources
         run: python -m py_compile app.py runner.py model_catalog.py main_bundle.py bundle_fix_record.py
       - name: Install catalog config parser
-        run: python -m pip install pyyaml
+        run: >-
+          python -m pip install -c constraints-release.txt pyyaml torch==2.8.0
+          'bs-roformer-infer @ git+https://github.com/openmirlab/bs-roformer-infer.git@95c8de7b0b091d00f064d694bf916a21866c32f5'
       - name: Syntax-check shell scripts
         run: bash -n build.sh setup.sh build_bundle.sh
       - name: Test model catalog and downloads
