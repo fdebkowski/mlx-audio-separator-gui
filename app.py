@@ -19,6 +19,7 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 import model_catalog
+from quality_settings import QualityControls
 
 import tkinter as tk
 import tkinter.font as tkfont
@@ -510,6 +511,7 @@ class SeparatorApp:
         self.stem_combo = ttk.Combobox(row1, textvariable=self.stem_var, state="readonly",
                                        width=18, values=["All stems"])
         self.stem_combo.pack(side="left", padx=4)
+        self.quality_controls = QualityControls(opt, self.settings.get('quality', {}), self._save_quality)
         row2 = ttk.Frame(opt)
         row2.pack(fill="x", pady=2)
         ttk.Label(row2, text="Save to:").pack(side="left")
@@ -746,6 +748,10 @@ class SeparatorApp:
 
     def _save_outdir(self):
         self.settings["output_dir"] = self.outdir_var.get().strip()
+        self._save_settings()
+
+    def _save_quality(self, value):
+        self.settings['quality'] = value
         self._save_settings()
 
     def _save_format(self):
@@ -1124,6 +1130,7 @@ class SeparatorApp:
         m = self.model_by_file.get(sel[0])
         if not m:
             return
+        self.quality_controls.set_architecture(m["arch"])
         self.stem_map = stem_options(m.get("stems"))
         labels = list(self.stem_map.keys())
         self.stem_combo.configure(values=labels)
@@ -1280,6 +1287,7 @@ class SeparatorApp:
             "--output_dir", outdir,
             "--model_file_dir", str(MODEL_DIR),
         ])
+        cmd += self.quality_controls.engine_args()
         stem = self.stem_map.get(self.stem_var.get())
         if stem:
             cmd += ["--single_stem", stem]
