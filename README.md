@@ -221,3 +221,11 @@ bundles static `ffmpeg`/`ffprobe` binaries from
 [eugeneware/ffmpeg-static](https://github.com/eugeneware/ffmpeg-static), which
 are licensed under the GPL v3; the license text and a written offer for the
 corresponding source ship inside the app at `Contents/Resources/ffmpeg/`.
+
+## Configure automatic model discovery
+
+The app also searches Hugging Face globally for newly updated Roformers from new authors. Edit the user `model_sources.json` to choose authors, searches and explicit repositories. Use **Newest first** and **Help → Model sources and refresh status**, or `python catalog_cli.py --refresh`. See [Model discovery](docs/model-database.md) for source configuration, compatibility checks and offline behavior.
+
+## Quality presets and advanced controls
+
+Choose **Fast**, **Balanced** (default), or **High**, or use **Advanced…** to tune segment size, overlap, Demucs shifts or VR augmentation. Settings are saved. Higher settings cost time and memory and can improve some tracks; compare an excerpt. See [Quality controls](docs/quality-settings.md) for preset values and UVR5 references.

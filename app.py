@@ -19,6 +19,7 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 import model_catalog
+from quality_settings import QualityControls
 
 import tkinter as tk
 import tkinter.font as tkfont
@@ -44,7 +45,7 @@ UPDATE_CHECK_INTERVAL = 24 * 3600  # auto-check at most once a day
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
 # Bump when the engine or curated extra_models.json changes so existing
 # installs drop their cached model index and pick up the additions.
-MODELS_REV = 7
+MODELS_REV = 8
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
 # Configs/metadata that ride along with a model download. A few KB each and
 # re-fetched on demand, so they don't decide whether a model counts as
@@ -458,6 +459,10 @@ class SeparatorApp:
         ttk.Checkbutton(top, text="4 stems", variable=self.four_stems_var,
                         command=self._apply_filter).pack(side="right", padx=(0, 10))
 
+        self.newest_first_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(top, text="Newest first", variable=self.newest_first_var,
+                        command=self._apply_filter).pack(side="right", padx=(0, 10))
+
         cols = ("name", "stems", "sdr", "disk")
         tree_wrap = ttk.Frame(model_frame)
         tree_wrap.pack(fill="both", expand=True)
@@ -506,6 +511,7 @@ class SeparatorApp:
         self.stem_combo = ttk.Combobox(row1, textvariable=self.stem_var, state="readonly",
                                        width=18, values=["All stems"])
         self.stem_combo.pack(side="left", padx=4)
+        self.quality_controls = QualityControls(opt, self.settings.get('quality', {}), self._save_quality)
         row2 = ttk.Frame(opt)
         row2.pack(fill="x", pady=2)
         ttk.Label(row2, text="Save to:").pack(side="left")
@@ -582,12 +588,24 @@ class SeparatorApp:
         helpm.add_separator()
         helpm.add_command(label="MLX Audio Separator on GitHub",
                           command=lambda: webbrowser.open(GITHUB_URL))
+        helpm.add_command(label="Model sources and refresh status", command=self._catalog_status)
         helpm.add_command(label="Report an Issue",
                           command=lambda: webbrowser.open(GITHUB_URL + "/issues"))
         menubar.add_cascade(label="Help", menu=helpm)
         self.root.configure(menu=menubar)
         self.root.bind("<Command-o>", lambda *_: self._add_files())
         self.root.bind("<Command-O>", lambda *_: self._add_folder())
+
+    def _catalog_status(self):
+        status = model_catalog.catalog_status()
+        checked = status['last_checked_utc'] or 'Never'
+        warnings = '\n'.join(status['warnings'][:5]) or 'All sources available'
+        messagebox.showinfo('Model database',
+            f"Last checked (UTC): {checked}\nCompatible discoveries: {status['discovered_models']}"
+            f"\nAwaiting engine support/review: {len(status['needs_engine_support'])}"
+            f"\n\n{warnings}\n\nEdit sources in:\n{status['sources_file']}"
+            "\n\nRefresh list checks GitHub registries and Hugging Face immediately."
+            "\nNewest first sorts models with known publication/update dates.")
 
     def _toggle_details(self):
         if self.details_visible:
@@ -730,6 +748,10 @@ class SeparatorApp:
 
     def _save_outdir(self):
         self.settings["output_dir"] = self.outdir_var.get().strip()
+        self._save_settings()
+
+    def _save_quality(self, value):
+        self.settings['quality'] = value
         self._save_settings()
 
     def _save_format(self):
@@ -1070,6 +1092,8 @@ class SeparatorApp:
         Sorts are stable, so within a column's ties models keep the incoming
         recommended/SDR order (e.g. sort by Stems and the best model of each
         stem count floats to the top of its group)."""
+        if getattr(self, 'newest_first_var', None) is not None and self.newest_first_var.get():
+            return sorted(items, key=lambda m: m.get('updated') or '', reverse=True)
         if self._sort is None:
             return list(items)
         col, reverse = self._sort
@@ -1106,6 +1130,7 @@ class SeparatorApp:
         m = self.model_by_file.get(sel[0])
         if not m:
             return
+        self.quality_controls.set_architecture(m["arch"])
         self.stem_map = stem_options(m.get("stems"))
         labels = list(self.stem_map.keys())
         self.stem_combo.configure(values=labels)
@@ -1262,6 +1287,7 @@ class SeparatorApp:
             "--output_dir", outdir,
             "--model_file_dir", str(MODEL_DIR),
         ])
+        cmd += self.quality_controls.engine_args()
         stem = self.stem_map.get(self.stem_var.get())
         if stem:
             cmd += ["--single_stem", stem]

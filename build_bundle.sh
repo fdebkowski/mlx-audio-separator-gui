@@ -80,6 +80,7 @@ arch -arm64 "$PYI" \
   --add-data "$HERE/compat_models.json:." \
   --add-data "$HERE/score_overrides.json:." \
   --add-data "$HERE/catalog_settings.json:." \
+  --add-data "$HERE/model_sources.json:." \
   --add-data "$HERE/engine_adapters/scnet/LICENSE:engine_adapters/scnet" \
   --hidden-import lameenc \
   --hidden-import runner \

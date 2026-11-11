@@ -84,6 +84,9 @@ def load_into(separator, filename, architecture):
 
     _, _, _, checkpoint, config_name = separator.download_model_files(filename)
     config = read_config(Path(separator.model_file_dir) / config_name)
+    if getattr(separator, 'gui_quality', None) is not None:
+        from quality_settings import apply_compat_config
+        apply_compat_config(config, separator.gui_quality)
     network = load_network(architecture, config, checkpoint)
 
     class CompatibilitySeparator(MDXCSeparator):

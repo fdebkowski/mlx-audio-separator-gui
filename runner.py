@@ -17,6 +17,8 @@ still runnable as a script for the run-from-source path (app.py shells out to
 `python runner.py …` when not frozen).
 """
 import json
+import argparse
+import quality_settings as quality
 import os
 import sys
 from pathlib import Path
@@ -85,7 +87,7 @@ def _load_extra_models():
     return {}
 
 
-def _install_extra_models_shim():
+def _install_extra_models_shim(quality_options=None):
     """Merge curated extra models into the engine's registry.
 
     Separator.list_supported_model_files is the single choke point: it feeds
@@ -138,10 +140,14 @@ def _install_extra_models_shim():
 
     def _load(self, model_filename='model_bs_roformer_ep_317_sdr_12.9755.ckpt'):
         filename = model_filename
+        if quality_options is not None:
+            self.gui_quality = quality_options
         if filename in catalog.COMPAT_MODELS:
             from engine_adapters.torch_models import load_into
             return load_into(self, filename, catalog.COMPAT_MODELS[filename])
         result = orig_load(self, filename)
+        if quality_options is not None and getattr(self, 'model_type', None) == 'MDXC':
+            quality.apply_mlx_mdxc(self.model_instance, quality_options)
         if '/' in filename:
             # Engine output filenames include model_name; source namespaces
             # belong in the cache path, not in an output filename.
@@ -183,7 +189,14 @@ def fold_four_stems(sources):
 def main():
     _fix_path()
     _install_save_shim()
-    _install_extra_models_shim()
+    parser = argparse.ArgumentParser(add_help=False)
+    quality.add_arguments(parser)
+    args, remaining = parser.parse_known_args(sys.argv[1:])
+    options = quality.from_arguments(args)
+    sys.argv = [sys.argv[0], *remaining, *quality.mlx_cli_args(options)]
+    _install_extra_models_shim(options)
+    if '--list_models' not in remaining:
+        print('Quality settings: ' + json.dumps(options), file=sys.stderr, flush=True)
     from mlx_audio_separator.utils.cli import main as cli_main
     return cli_main()
 

@@ -93,6 +93,7 @@ def due(state, now=None):
 
 def safe_path(path):
     return (isinstance(path, str) and bool(path) and '\\' not in path
+            and ':' not in path and not any(ord(c) < 32 for c in path)
             and not PurePosixPath(path).is_absolute()
             and all(p not in ('', '.', '..') for p in path.split('/')))
 
@@ -249,7 +250,9 @@ def discover_repo(repo, baseline, settings, previous):
                          friendly=f"{metadata['family']} | {PurePosixPath(weight).stem} by {repo_id.split('/')[0]}")
             entries.append(entry)
         except Exception as exc:
-            skipped.append({'repo': repo_id, 'checkpoint': weight, 'reason': str(exc), 'updated': repo.get('lastModified')})
+            skipped.append({'repo': repo_id, 'checkpoint': weight, 'reason': str(exc),
+                            'retain_previous': isinstance(exc, (OSError, urllib.error.URLError)),
+                            'updated': repo.get('lastModified')})
     return entries, skipped
 
 
@@ -279,11 +282,61 @@ def discover_upstream(models, baseline):
     return entries, skipped
 
 
+def source_settings(support=SUPPORT):
+    """User overrides live outside the application, so upgrades preserve them."""
+    defaults = bundled_json('model_sources.json')
+    # Keep backwards compatibility when older bundles lack this data file.
+    defaults.setdefault('huggingface_authors', list(AUTHORS))
+    defaults.setdefault('huggingface_searches', ['roformer'])
+    defaults.setdefault('huggingface_repositories', [])
+    defaults.setdefault('search_limit', 30)
+    path = Path(support) / 'model_sources.json'
+    if not path.exists():
+        atomic_json(path, defaults)
+    overrides = read_json(path)
+    if not isinstance(overrides, dict):
+        raise ValueError('model_sources.json must contain an object')
+    settings = {**defaults, **overrides}
+    for key in ('huggingface_authors', 'huggingface_searches', 'huggingface_repositories'):
+        values = settings.get(key)
+        if not isinstance(values, list) or len(values) > 30 or not all(isinstance(v, str) and 0 < len(v) <= 100 for v in values):
+            raise ValueError('Invalid model source setting: ' + key)
+    for author in settings['huggingface_authors']:
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', author):
+            raise ValueError('Invalid Hugging Face author')
+    for repo in settings['huggingface_repositories']:
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*', repo):
+            raise ValueError('Invalid Hugging Face repository')
+    limit = settings.get('search_limit')
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+        raise ValueError('search_limit must be from 1 to 100')
+    return settings
+
+
+def catalog_status(state=None):
+    from datetime import datetime, timezone
+    state = load_state() if state is None else state
+    checked = state.get('checked_at')
+    entries = state.get('discovered', [])
+    return {
+        'last_checked_utc': datetime.fromtimestamp(checked, timezone.utc).isoformat() if checked else None,
+        'refresh_interval_hours': REFRESH_INTERVAL // 3600,
+        'discovered_models': len(entries),
+        'upstream_additions': len(state.get('upstream_entries', {})),
+        'sources_file': str(Path(SUPPORT) / 'model_sources.json'),
+        'warnings': state.get('warnings', []),
+        'needs_engine_support': state.get('skipped', []),
+        'newest': [{'model': e['friendly'], 'updated': e.get('updated'), 'source': e['source_url']}
+                   for e in sorted(entries, key=lambda e: e.get('updated') or '', reverse=True)[:15]],
+    }
+
+
 def refresh_sources(baseline, support=SUPPORT):
     """Refresh independent data feeds; failed feeds retain their previous value."""
     state = load_state(support)
     warnings = []
     settings = bundled_json('catalog_settings.json')
+    sources = source_settings(support)
     feeds = {
         'extras': (REMOTE_BASE + 'extra_models.json', validate_extras),
         'overrides': (REMOTE_BASE + 'score_overrides.json', validate_overrides),
@@ -298,15 +351,25 @@ def refresh_sources(baseline, support=SUPPORT):
             raise ValueError('Invalid ' + key + ' feed')
         return key, value
     repos = []
-    def get_author(author):
-        query = urllib.parse.urlencode({'author': author, 'sort': 'lastModified', 'direction': -1, 'limit': 100, 'full': 'true'})
-        value = json.loads(fetch('https://huggingface.co/api/models?' + query))
-        if not isinstance(value, list):
-            raise ValueError('Invalid Hugging Face author listing')
-        return [r for r in value if isinstance(r, dict) and str(r.get('id', '')).startswith(author + '/')]
+    def get_listing(kind, value):
+        if kind == 'repo':
+            result = json.loads(fetch('https://huggingface.co/api/models/' + value))
+            if not isinstance(result, dict) or result.get('id') != value:
+                raise ValueError('Invalid Hugging Face repository response')
+            return [result]
+        query = {'sort': 'lastModified', 'direction': -1, 'limit': sources['search_limit'], 'full': 'true'}
+        query['author' if kind == 'author' else 'search'] = value
+        result = json.loads(fetch('https://huggingface.co/api/models?' + urllib.parse.urlencode(query)))
+        if not isinstance(result, list):
+            raise ValueError('Invalid Hugging Face model listing')
+        return [r for r in result if isinstance(r, dict) and isinstance(r.get('id'), str)
+                and (kind != 'author' or r['id'].startswith(value + '/'))]
+    listings = [('author', a) for a in sources['huggingface_authors']]
+    listings += [('search', q) for q in sources['huggingface_searches']]
+    listings += [('repo', r) for r in sources['huggingface_repositories']]
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         jobs = {pool.submit(get_feed, item): item[0] for item in feeds.items()}
-        jobs.update({pool.submit(get_author, author): 'hf:' + author for author in AUTHORS})
+        jobs.update({pool.submit(get_listing, kind, value): 'hf:' + kind + ':' + value for kind, value in listings})
         for future in concurrent.futures.as_completed(jobs):
             key = jobs[future]
             try:
@@ -322,6 +385,7 @@ def refresh_sources(baseline, support=SUPPORT):
     # indefinitely. The full validated list remains available when offline.
     if state.get('uvr'):
         atomic_json(Path(support) / 'models' / 'download_checks.json', state['uvr'])
+    repos = list({r['id']: r for r in repos}.values())
     existing = {info['filename'] for group in baseline.values() for info in group.values()}
     existing.update(e['filename'] for e in bundled_json('extra_models.json').values())
     existing.update(e['filename'] for e in state.get('extras', {}).values())
@@ -342,6 +406,15 @@ def refresh_sources(baseline, support=SUPPORT):
                 entries, blocked = future.result()
                 for entry in entries:
                     discovered[entry['source_key']] = entry
+                for rejected in blocked:
+                    if rejected.get('retain_previous'):
+                        continue
+                    if rejected.get('checkpoint'):
+                        discovered.pop(rejected['repo'] + '/' + rejected['checkpoint'], None)
+                    else:
+                        for key in list(discovered):
+                            if key.startswith(rejected['repo'] + '/'):
+                                del discovered[key]
                 skipped.extend(blocked)
             except Exception as exc:
                 warnings.append(f'{jobs[future]}: {exc}')
