@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Run the mlx-audio-separator CLI with a fix for 24-bit / 32-bit sources.
-
-The library derives the output encoding from the input file's PCM subtype and
-passes 'pcm24'/'pcm32' to mlx_audio_io.save, which only accepts
-'auto'/'float32'/'pcm16' and raises "Unsupported encoding …". Coerce any
-unsupported value to 'auto' so the writer picks a valid subtype per container.
-This patches the single choke point (mlx_audio_io.save) so it covers the sync
-and threaded AsyncStemWriter paths without editing the installed package.
+"""Run the mlx-audio-separator CLI with GUI export and model support.
 
 Also merges extra_models.json (curated community models newer than the
 engine's bundled registry) into the engine's model list; see
@@ -24,6 +17,7 @@ import sys
 from pathlib import Path
 
 _SUPPORTED = {"auto", "float32", "pcm16"}
+_DEPTHS = {"auto", "16", "24", "32-float"}
 
 
 def _bundled_ffmpeg_dir():
@@ -56,16 +50,31 @@ def _fix_path():
     os.environ["PATH"] = os.pathsep.join(parts)
 
 
-def _install_save_shim():
+def _install_save_shim(depth='auto'):
     import mlx_audio_io as _mac
 
     orig_save = _mac.save
 
-    def _save(*args, **kwargs):
-        enc = kwargs.get("encoding")
-        if enc is not None and enc not in _SUPPORTED:
-            kwargs["encoding"] = "auto"
-        return orig_save(*args, **kwargs)
+    def _save(path, audio, sr, layout='auto', encoding='float32', **kwargs):
+        ext = Path(path).suffix.lower()
+        if depth != 'auto' and ext in ('.wav', '.flac'):
+            if depth == '32-float' and ext != '.wav':
+                raise ValueError('32-bit float export requires WAV.')
+            if depth == '24':
+                # The pinned MLX writer has no explicit PCM_24 encoding.
+                import numpy as np
+                import soundfile as sf
+
+                data = np.asarray(audio, dtype=np.float32)
+                if layout == 'channels_first' or (layout == 'auto' and data.ndim == 2 and data.shape[0] <= 8 < data.shape[1]):
+                    data = data.T
+                options = {'compression_level': 0.0} if ext == '.flac' and kwargs.get('flac_compression') == 'fast' else {}
+                return sf.write(path, data, sr, subtype='PCM_24', **options)
+            encoding = 'float32' if depth == '32-float' else 'pcm16'
+        # Older callers can supply pcm24/pcm32 labels from the input decoder.
+        if encoding not in _SUPPORTED:
+            encoding = 'auto'
+        return orig_save(path, audio, sr, layout=layout, encoding=encoding, **kwargs)
 
     _mac.save = _save
 
@@ -111,11 +120,27 @@ def _install_extra_models_shim(quality_options=None):
         state = catalog.refresh_sources(baseline)
 
     def _list(self):
-        grouped = orig_list(self)
-        return catalog.merge_catalog(grouped, state)
+        local = catalog.local_models(getattr(self, 'model_file_dir', '.'))
+        try:
+            grouped = catalog.merge_catalog(orig_list(self), state)
+        except (OSError, RuntimeError):
+            if not local:
+                raise
+            if hasattr(self, 'logger'):
+                self.logger.warning('Online model catalog unavailable; listing local imports only.')
+            grouped = {}
+        grouped.setdefault('MDXC', {}).update(local)
+        return grouped
 
     def _download(self, model_filename):
         filename = model_filename
+        if catalog.LOCAL_FILENAME.fullmatch(filename):
+            local = catalog.local_model(self.model_file_dir, filename)
+            if local is None:
+                raise ValueError('Local model is missing its checkpoint or config. Import it again.')
+            name, info = local
+            root = Path(self.model_file_dir).resolve()
+            return filename, 'MDXC', name, str(root / filename), str(root / info['config'])
         if filename == catalog.SW_FOUR_STEM:
             return _download(self, 'BS-Roformer-SW.ckpt')
         for name, info in _list(self).get('MDXC', {}).items():
@@ -146,6 +171,8 @@ def _install_extra_models_shim(quality_options=None):
             from engine_adapters.torch_models import load_into
             return load_into(self, filename, catalog.COMPAT_MODELS[filename])
         result = orig_load(self, filename)
+        if catalog.LOCAL_FILENAME.fullmatch(filename) and getattr(self, 'model_type', None) == 'MDXC':
+            _configure_imported_roformer(self.model_instance)
         if quality_options is not None and getattr(self, 'model_type', None) == 'MDXC':
             quality.apply_mlx_mdxc(self.model_instance, quality_options)
         if '/' in filename:
@@ -176,6 +203,24 @@ def _install_extra_models_shim(quality_options=None):
     Separator.load_model = _load
 
 
+def _configure_imported_roformer(instance):
+    training = instance.model_data['training']
+    stems, target = training['instruments'], training.get('target_instrument')
+    if len(stems) == 2 and target in stems:
+        instance.primary_stem_name = target
+        instance.secondary_stem_name = next(stem for stem in stems if stem != target)
+    if instance.model_data['model'].get('stft_normalized'):
+        from mlx_spectro import get_transform_mlx
+
+        # The pinned Mel-Band loader does not forward this constructor flag.
+        # Both the model's forward STFT and inverse use the shared transform.
+        model = instance.model
+        model.stft_normalized = True
+        model._stft_transform = get_transform_mlx(
+            n_fft=model.stft_n_fft, hop_length=model.stft_hop_length, win_length=model.stft_win_length,
+            window_fn='hann', window=None, periodic=True, center=True, normalized=True)
+
+
 def fold_four_stems(sources):
     """Lossless in-memory fold before WAV/FLAC/MP3 output encoding."""
     names = {name.lower(): value for name, value in sources.items()}
@@ -187,11 +232,25 @@ def fold_four_stems(sources):
 
 
 def main():
+    if sys.argv[1:2] == ['--gui-import-model']:
+        import model_catalog as catalog
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--gui-import-model', nargs=2, metavar=('CHECKPOINT', 'YAML'), required=True)
+        parser.add_argument('--model_file_dir', required=True)
+        args = parser.parse_args()
+        try:
+            filename = catalog.import_local_model(args.model_file_dir, *args.gui_import_model)
+        except (OSError, ValueError) as error:
+            parser.exit(1, f'{error}\n')
+        print(filename)
+        return 0
     _fix_path()
-    _install_save_shim()
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    parser.add_argument('--output-depth', choices=sorted(_DEPTHS), default='auto')
     quality.add_arguments(parser)
     args, remaining = parser.parse_known_args(sys.argv[1:])
+    _install_save_shim(args.output_depth)
     options = quality.from_arguments(args)
     sys.argv = [sys.argv[0], *remaining, *quality.mlx_cli_args(options)]
     _install_extra_models_shim(options)

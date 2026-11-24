@@ -37,7 +37,7 @@ wins for every song. No full-dataset quality benchmark was run for this change.
 | [Gabox BS Karaoke IS](https://huggingface.co/GaboxR67/MelBandRoformers/tree/main/bsroformers) | Weight uploaded 22 October 2025 | Discovered with its own BS config. |
 | [Aname Full Scratch Vocals](https://huggingface.co/Aname-Tommy/Mel_Band_Roformer_Full_Scratch) | Updated 8 October 2025 | Discovered automatically. |
 | [Aname Duality](https://huggingface.co/Aname-Tommy/Mel-Band-Roformer_Duality) | 21 September 2025 | Discovered automatically. |
-| [Gabox Flowers V10](https://huggingface.co/GaboxR67/MelBandRoformers/tree/main/melbandroformers/instrumental) | Weight uploaded 4 January 2026 | Different from existing experimental INSTV10. Its normalized STFT is not forwarded by the pinned engine loader; held for engine support. |
+| [Gabox Flowers V10](https://huggingface.co/GaboxR67/MelBandRoformers/tree/main/melbandroformers/instrumental) | Weight uploaded 4 January 2026 | Different from existing experimental INSTV10. As of v1.5.0, use **Import model…** with `inst_gaboxFlowersV10.ckpt` and `v10.yaml`; the app applies the normalized STFT that the pinned loader otherwise omits. |
 | [unwa Large Inst](https://huggingface.co/pcunwa/BS-Roformer-Large-Inst) | 25 January 2026 | Modified Transformer mask estimator; requires an MLX architecture extension. |
 | [unwa HyperACE v2 vocals / instrumental](https://huggingface.co/pcunwa/BS-Roformer-HyperACE) | Updated 20 December 2025 | Modified hypergraph architecture; requires an MLX extension. |
 | [unwa SiameseRoformer](https://huggingface.co/pcunwa/BS-EXP-SiameseRoformer) | 11 March 2026 | Experimental normalization architecture; held for review. |

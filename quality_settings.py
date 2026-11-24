@@ -2,21 +2,23 @@
 import math
 
 PRESETS = {
-    'Fast': dict(segment_size=128, overlap=2, overlap_ratio=.25, demucs_segment=5, demucs_shifts=1, vr_tta=False),
-    'Balanced': dict(segment_size=256, overlap=4, overlap_ratio=.5, demucs_segment=None, demucs_shifts=2, vr_tta=False),
-    'High': dict(segment_size=None, overlap=8, overlap_ratio=.75, demucs_segment=None, demucs_shifts=4, vr_tta=True),
+    'Fast': dict(segment_size=128, overlap=2, mdxc_batch_size=1, overlap_ratio=.25, demucs_segment=5, demucs_shifts=1, vr_tta=False),
+    'Balanced': dict(segment_size=256, overlap=4, mdxc_batch_size=1, overlap_ratio=.5, demucs_segment=None, demucs_shifts=2, vr_tta=False),
+    'High': dict(segment_size=None, overlap=8, mdxc_batch_size=1, overlap_ratio=.75, demucs_segment=None, demucs_shifts=4, vr_tta=True),
 }
 HELP = ('Overlap blends predictions from neighboring windows: more overlap can reduce boundary artifacts but takes longer. '
         'Segment size controls how much audio a model sees at once: larger segments use more memory and can change the result. '
         'Model keeps the Roformer/MDXC checkpoint\'s configured context; MDX uses its standard 256 frames. '
         'High uses model context and more overlap; it is not guaranteed to sound better on every song. '
-        'On a 6 GB card, start with Balanced and compare a short excerpt. '
+        'Batch size is how many chunks an MLX model processes together. Larger batches may run faster but use more memory. '
         'These controls affect inference, independently of file format or published SDR scores.')
 
 
 def validate(settings):
     value = dict(settings)
-    for key, low, high in (('segment_size', 32, 4096), ('overlap', 2, 50), ('demucs_shifts', 0, 8), ('demucs_segment', 1, 7)):
+    value.setdefault('mdxc_batch_size', 1)  # settings saved before v1.5
+    for key, low, high in (('segment_size', 32, 4096), ('overlap', 2, 50), ('mdxc_batch_size', 1, 8),
+                           ('demucs_shifts', 0, 8), ('demucs_segment', 1, 7)):
         n = value.get(key)
         if key in ('segment_size', 'demucs_segment') and n is None:
             continue
@@ -34,6 +36,7 @@ def add_arguments(parser):
     parser.add_argument('--quality', choices=['fast', 'balanced', 'high'], default='balanced')
     parser.add_argument('--segment-size', help='Roformer/MDXC/MDX frames (32–4096), or model')
     parser.add_argument('--overlap', type=int, help='Roformer/MDXC overlap count (2–50)')
+    parser.add_argument('--mdxc-batch-size', type=int, help='MLX Roformer/MDXC batch size (1–8)')
     parser.add_argument('--overlap-ratio', type=float, help='MDX/Demucs overlap fraction (0–0.99)')
     parser.add_argument('--demucs-segment', help='Demucs seconds (1–7), or model')
     parser.add_argument('--demucs-shifts', type=int)
@@ -127,14 +130,14 @@ def apply_mlx_mdxc(instance, value):
         instance.segment_size = frames
         instance.override_model_segment_size = True
         instance.overlap = chunk / audio.get('sample_rate', instance.sample_rate) / value['overlap']
-    instance.batch_size = 1
+    instance.batch_size = value['mdxc_batch_size']
 
 
 class QualityControls:
     def __init__(self, parent, saved, on_save):
         import tkinter as tk
         from tkinter import ttk
-        self.on_save, self.architecture = on_save, 'MDXC'
+        self.on_save, self.architecture, self.backend = on_save, 'MDXC', 'MLX'
         try:
             self.value = validate(saved['values'])
             name = saved['preset'] if saved['preset'] in (*PRESETS, 'Custom') else 'Custom'
@@ -163,10 +166,12 @@ class QualityControls:
         else:
             segment = str(v['segment_size']) + ' frames' if v['segment_size'] else 'Model segment'
             text = f"{segment} · overlap {v['overlap']}"
+            if self.backend == 'MLX':
+                text += f" · batch {v['mdxc_batch_size']}"
         self.summary.set(text)
 
-    def set_architecture(self, architecture):
-        self.architecture = architecture
+    def set_architecture(self, architecture, backend='MLX'):
+        self.architecture, self.backend = architecture, backend
         self._summarize()
 
     def _save(self):
@@ -209,6 +214,8 @@ class QualityControls:
                 fields['segment_size'].set('256')
         if self.architecture == 'MDXC':
             field('overlap', 'Overlap (prediction count)', list(range(2, 51)))
+            if self.backend == 'MLX':
+                field('mdxc_batch_size', 'Batch size (chunks)', list(range(1, 9)))
         if self.architecture in ('MDX', 'Demucs'):
             field('overlap_ratio', 'Overlap (fraction; 0.5 = 50%)', [.25, .5, .75, .9, .95, .99])
         if self.architecture == 'Demucs':
