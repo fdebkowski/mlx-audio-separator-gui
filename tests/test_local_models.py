@@ -85,8 +85,10 @@ class LocalModelTests(unittest.TestCase):
             runner._install_extra_models_shim()
             separator = Separator()
             loaded = separator.load_model(filename)
-            self.assertEqual(loaded[3], str(self.models / filename))
-            self.assertEqual(loaded[4], str((self.models / filename).parent / 'roformer.yaml'))
+            # On macOS, /var/folders is an alias for /private/var/folders.
+            expected = self.models.resolve() / filename
+            self.assertEqual(loaded[3], str(expected))
+            self.assertEqual(loaded[4], str(expected.with_name('roformer.yaml')))
             entries = separator.list_supported_model_files()['MDXC'].values()
             self.assertIn(filename, [row['filename'] for row in entries])
 
