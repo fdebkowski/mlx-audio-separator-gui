@@ -33,7 +33,7 @@ MODEL_DIR = APP_SUPPORT / "models"
 INDEX_CACHE = APP_SUPPORT / "models_index.json"
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
 GITHUB_URL = "https://github.com/fdebkowski/mlx-audio-separator-gui"
-APP_VERSION = "1.4.0"  # single source of truth; build.sh / build_bundle.sh read this
+APP_VERSION = "1.5.0"  # single source of truth; build.sh / build_bundle.sh read this
 # Auto-update checks the repo's "latest release" and, in the packaged .app,
 # downloads the new bundle and swaps it in place. Derived from GITHUB_URL so the
 # repo lives in one spot.
@@ -45,7 +45,7 @@ UPDATE_CHECK_INTERVAL = 24 * 3600  # auto-check at most once a day
 DEFAULT_MODEL = "mel_band_roformer_instrumental_instv8_gabox.ckpt"
 # Bump when the engine or curated extra_models.json changes so existing
 # installs drop their cached model index and pick up the additions.
-MODELS_REV = 8
+MODELS_REV = 9
 AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif", ".ogg", ".opus", ".wma", ".mp4"}
 # Configs/metadata that ride along with a model download. A few KB each and
 # re-fetched on demand, so they don't decide whether a model counts as
@@ -56,6 +56,8 @@ AUX_EXTS = {".yaml", ".yml", ".json", ".txt", ".md"}
 # size of the download itself — so deleting a Demucs model has to clear it too.
 DEMUCS_MLX_CACHE = Path.home() / ".cache" / "demucs-mlx"
 FORMATS = ["FLAC", "WAV", "MP3"]
+BIT_DEPTH = {"Auto": "auto", "16-bit PCM": "16", "24-bit PCM": "24", "32-bit float": "32-float"}
+FORMAT_DEPTHS = {"FLAC": ("Auto", "16-bit PCM", "24-bit PCM"), "WAV": tuple(BIT_DEPTH), "MP3": ("Auto",)}
 MAX_LOG_LINES = 5000  # cap the log widget so long/batch runs don't grow memory without bound
 PERCENT_RE = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*%")
 # Scraped from the engine's stdout. The CLI logs per-file errors but still
@@ -270,6 +272,7 @@ class SeparatorApp:
         self._update_downloading = False
         self._pending_update = None
         self._models_loading = False
+        self._importing_model = False
         self.update_msg = None
         self.update_progress = None
         # None = the recommended default order from the worker; otherwise a
@@ -452,6 +455,8 @@ class SeparatorApp:
         self.refresh_btn = ttk.Button(top, text="Refresh list",
                                       command=lambda: self._load_models_async(force=True))
         self.refresh_btn.pack(side="right")
+        self.import_btn = ttk.Button(top, text="Import model…", command=self._choose_local_model)
+        self.import_btn.pack(side="right", padx=(0, 8))
         self.downloaded_only_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(top, text="Downloaded only", variable=self.downloaded_only_var,
                         command=self._toggle_downloaded_only).pack(side="right", padx=(0, 10))
@@ -503,9 +508,15 @@ class SeparatorApp:
         ttk.Label(row1, text="Format:").pack(side="left")
         fmt = self.settings.get("format")
         self.format_var = tk.StringVar(value=fmt if fmt in FORMATS else "FLAC")
-        self.format_var.trace_add("write", lambda *_: self._save_format())
         for f in FORMATS:
             ttk.Radiobutton(row1, text=f, value=f, variable=self.format_var).pack(side="left", padx=4)
+        ttk.Label(row1, text="Bit depth:").pack(side="left", padx=(12, 2))
+        self.depth_var = tk.StringVar()
+        self.depth_combo = ttk.Combobox(row1, textvariable=self.depth_var, width=13)
+        self.depth_combo.pack(side="left", padx=4)
+        self.depth_combo.bind("<<ComboboxSelected>>", self._save_depth)
+        self._update_depth_choices()
+        self.format_var.trace_add("write", lambda *_: self._save_format())
         ttk.Label(row1, text="   Stems:").pack(side="left", padx=(16, 2))
         self.stem_var = tk.StringVar(value="All stems")
         self.stem_combo = ttk.Combobox(row1, textvariable=self.stem_var, state="readonly",
@@ -757,6 +768,23 @@ class SeparatorApp:
     def _save_format(self):
         self.settings["format"] = self.format_var.get()
         self._save_settings()
+        self._update_depth_choices()
+
+    def _update_depth_choices(self):
+        fmt = self.format_var.get()
+        choices = FORMAT_DEPTHS[fmt]
+        saved = self.settings.get("output_depths", {})
+        preferred = saved.get(fmt) if isinstance(saved, dict) else None
+        self.depth_combo.configure(values=choices, state="readonly" if len(choices) > 1 else "disabled")
+        self.depth_var.set(preferred if isinstance(preferred, str) and preferred in choices else choices[0])
+
+    def _save_depth(self, _event=None):
+        saved = self.settings.get("output_depths")
+        if not isinstance(saved, dict):
+            saved = {}
+        saved[self.format_var.get()] = self.depth_var.get()
+        self.settings["output_depths"] = saved
+        self._save_settings()
 
     # ---------- Updates ----------
     def _toggle_auto_update(self):
@@ -941,11 +969,41 @@ class SeparatorApp:
         self.update_progress.pack(side="right", padx=(0, 8))
 
     # ---------- Models ----------
+    def _choose_local_model(self):
+        if self.proc is not None or self._models_loading or self._importing_model:
+            return
+        weight = filedialog.askopenfilename(parent=self.root, title="Choose a trusted Roformer checkpoint",
+                                            filetypes=[("Roformer checkpoint", "*.ckpt")])
+        if not weight:
+            return
+        config = filedialog.askopenfilename(parent=self.root, title="Choose the matching Roformer YAML",
+                                            initialdir=str(Path(weight).parent), filetypes=[("YAML", ("*.yaml", "*.yml"))])
+        if not config:
+            return
+        self._importing_model = True
+        self._update_run_state()
+        self.refresh_btn.configure(state="disabled")
+        self.status_var.set("Copying local model…")
+        threading.Thread(target=self._import_model_worker, args=(weight, config), daemon=True).start()
+
+    def _import_model_worker(self, weight, config):
+        try:
+            result = subprocess.run(engine_cmd(["--gui-import-model", weight, config,
+                                                "--model_file_dir", str(MODEL_DIR)]),
+                                    capture_output=True, text=True, timeout=300)
+            filename = result.stdout.strip()
+            if result.returncode or not model_catalog.LOCAL_FILENAME.fullmatch(filename):
+                raise ValueError(result.stderr.strip() or "Import did not return a model ID.")
+            self.q.put(("model_imported", filename))
+        except (OSError, ValueError, subprocess.SubprocessError) as e:
+            self.q.put(("model_import_error", str(e)))
+
     def _load_models_async(self, force=False):
-        if self._models_loading:
+        if self._models_loading or self._importing_model:
             return
         self._models_loading = True
         self.refresh_btn.configure(state="disabled")
+        self.import_btn.configure(state="disabled")
         self.status_var.set("Loading model list…")
         threading.Thread(target=self._load_models_worker, args=(force,),
                          daemon=True).start()
@@ -959,6 +1017,7 @@ class SeparatorApp:
         data = None
         cached = None
         warning = None
+        local = model_catalog.local_models(MODEL_DIR)
         # Prefer cache (unless stale or a refresh was requested), else fetch
         # from the CLI.
         if not force and INDEX_CACHE.exists():
@@ -982,6 +1041,10 @@ class SeparatorApp:
                 idxs = [i for i in (raw.find("{"), raw.find("[")) if i != -1]
                 if idxs:
                     data = json.loads(raw[min(idxs):])
+                    # Local pairs come from disk, never from a stale index.
+                    if isinstance(data, dict) and isinstance(data.get('MDXC'), dict):
+                        data['MDXC'] = {name: info for name, info in data['MDXC'].items()
+                                        if isinstance(info, dict) and not model_catalog.LOCAL_FILENAME.fullmatch(str(info.get('filename', '')))}
                     if not isinstance(data, dict) or not any(data.values()):
                         raise ValueError('Empty or invalid model catalog')
                     state = model_catalog.load_state()
@@ -996,12 +1059,18 @@ class SeparatorApp:
                 if isinstance(fallback, dict) and any(fallback.values()):
                     data = fallback
                     warning = 'Offline: using the last saved model catalog. ' + str(e)
+                elif local:
+                    data, warning = {}, 'Offline: showing imported models.'
                 else:
                     self.q.put(("models_error", str(e)))
                     return
         if data is None:
-            self.q.put(("models_error", "No model list available."))
-            return
+            if not local:
+                self.q.put(("models_error", "No model list available."))
+                return
+            data = {}
+        if local:
+            data['MDXC'] = {**data.get('MDXC', {}), **local}
 
         models = []
         for arch, group in data.items():
@@ -1130,7 +1199,7 @@ class SeparatorApp:
         m = self.model_by_file.get(sel[0])
         if not m:
             return
-        self.quality_controls.set_architecture(m["arch"])
+        self.quality_controls.set_architecture(m["arch"], m["backend"])
         self.stem_map = stem_options(m.get("stems"))
         labels = list(self.stem_map.keys())
         self.stem_combo.configure(values=labels)
@@ -1145,9 +1214,11 @@ class SeparatorApp:
         return sel[0] if sel else None
 
     def _update_run_state(self):
-        ready = (self.proc is None and self.input_paths
+        ready = (self.proc is None and not self._importing_model and self.input_paths
                  and self._selected_model() is not None)
         self.run_btn.configure(state="normal" if ready else "disabled")
+        self.import_btn.configure(state="normal" if self.proc is None and not self._models_loading
+                                  and not self._importing_model else "disabled")
 
     # ---------- Downloaded models ----------
     def _scan_downloaded(self):
@@ -1185,7 +1256,7 @@ class SeparatorApp:
         menu.add_separator()
         menu.add_command(label="Reveal in Finder", state=state,
                          command=lambda: self._reveal_model(row))
-        menu.add_command(label="Delete download", state=state,
+        menu.add_command(label="Remove imported model" if model_catalog.LOCAL_FILENAME.fullmatch(row) else "Delete download", state=state,
                          command=lambda: self._delete_model(row))
         try:
             menu.tk_popup(evt.x_root, evt.y_root)
@@ -1239,6 +1310,26 @@ class SeparatorApp:
         return [p for p in paths if p.exists()]
 
     def _delete_model(self, filename):
+        if model_catalog.LOCAL_FILENAME.fullmatch(filename):
+            if self.proc is not None or self._models_loading or self._importing_model:
+                return
+            local = model_catalog.local_model(MODEL_DIR, filename)
+            if local is None:
+                return
+            if not messagebox.askyesno("Remove imported model", f"Remove the app's copy of {local[0]}?\n\n"
+                                       "The original files are not changed.", parent=self.root):
+                return
+            try:
+                shutil.rmtree((MODEL_DIR / filename).parent)
+            except OSError as e:
+                messagebox.showerror("Remove failed", str(e), parent=self.root)
+                return
+            self.models = [m for m in self.models if m['filename'] != filename]
+            self.model_by_file.pop(filename, None)
+            self._scan_downloaded()
+            self._apply_filter()
+            self._update_run_state()
+            return
         paths = self._model_files_on_disk(filename)
         if not paths:
             return
@@ -1264,7 +1355,7 @@ class SeparatorApp:
         return list(self.input_paths)
 
     def _start(self):
-        if self.proc is not None:
+        if self.proc is not None or self._importing_model:
             return
         inputs = self._gather_inputs()
         if not inputs:
@@ -1284,6 +1375,7 @@ class SeparatorApp:
         cmd = engine_cmd(inputs + [
             "-m", model,
             "--output_format", self.format_var.get(),
+            "--output-depth", BIT_DEPTH[self.depth_var.get()],
             "--output_dir", outdir,
             "--model_file_dir", str(MODEL_DIR),
         ])
@@ -1301,6 +1393,7 @@ class SeparatorApp:
         self._saw_memory_error = False
         self._saw_process_failure = False
         self.run_btn.configure(state="disabled")
+        self.import_btn.configure(state="disabled")
         self.cancel_btn.configure(state="normal")
         self.open_btn.configure(state="disabled")
         self.refresh_btn.configure(state="disabled")
@@ -1393,8 +1486,22 @@ class SeparatorApp:
                 elif kind == "models_error":
                     self._models_loading = False
                     self.refresh_btn.configure(state="normal")
+                    self._update_run_state()
                     self.status_var.set("Could not load models.")
                     self._log(f"Model list error: {payload}\n")
+                elif kind == "model_imported":
+                    self._importing_model = False
+                    self.settings['model'] = payload
+                    self.search_var.set('')
+                    self.four_stems_var.set(False)
+                    self._save_settings()
+                    self._load_models_async()
+                elif kind == "model_import_error":
+                    self._importing_model = False
+                    self.refresh_btn.configure(state="normal")
+                    self._update_run_state()
+                    self.status_var.set("Could not import model.")
+                    messagebox.showerror("Import failed", payload, parent=self.root)
                 elif kind == 'catalog_warning':
                     self.status_var.set(str(payload).split('. ')[0])
                     self._log(f'Catalog: {payload}\n')

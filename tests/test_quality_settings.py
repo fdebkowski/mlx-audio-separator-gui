@@ -30,6 +30,19 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(params['demucs_params']['shifts'], 4)
         self.assertTrue(params['vr_params']['enable_tta'])
 
+    def test_custom_mlx_batch_is_persisted_and_reaches_inference(self):
+        parser = argparse.ArgumentParser()
+        quality.add_arguments(parser)
+        value = quality.from_arguments(parser.parse_args(['--mdxc-batch-size', '3']))
+        self.assertEqual(quality.from_arguments(parser.parse_args(quality.cli_args(value))), value)
+        instance = SimpleNamespace(model_data={'inference': {'dim_t': 256}}, sample_rate=44100)
+        quality.apply_mlx_mdxc(instance, value)
+        self.assertEqual(instance.batch_size, 3)
+        old_settings = {key: value for key, value in quality.PRESETS['Balanced'].items() if key != 'mdxc_batch_size'}
+        self.assertEqual(quality.validate(old_settings)['mdxc_batch_size'], 1)
+        with self.assertRaises(ValueError):
+            quality.validate({**old_settings, 'mdxc_batch_size': 0})
+
     def test_mlx_count_is_translated_to_stride_seconds(self):
         data = {'model': {'stft_hop_length': 512}, 'audio': {'sample_rate': 44100},
                 'inference': {'dim_t': 1024}}

@@ -10,12 +10,15 @@ import json
 import math
 import os
 import re
+import shutil
 import ssl
 import sys
+import tempfile
 import time
 import urllib.parse
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path, PurePosixPath
 
 SCHEMA = 1
@@ -34,6 +37,7 @@ COMPAT_MODELS = {
     'model_scnet_ep_36_sdr_10.0891.ckpt': 'scnet',
 }
 MAX_BYTES = 4 * 1024 * 1024
+LOCAL_FILENAME = re.compile(r'imports/[0-9a-f]{32}/model\.ckpt')
 
 
 def ssl_context():
@@ -154,14 +158,21 @@ IGNORED_KEYS = set(('flash_attn dim_freqs_in use_torch_checkpoint '
                    'multi_stft_hop_size multi_stft_normalized').split())
 
 
-def config_metadata(text):
+def read_roformer_config(text):
     import yaml
     class ConfigLoader(yaml.SafeLoader):
         pass
     # Community configs use !!python/tuple for training loss windows. Accept
     # that sequence only, without allowing Python object construction.
     ConfigLoader.add_constructor('tag:yaml.org,2002:python/tuple', lambda loader, node: loader.construct_sequence(node))
-    config = yaml.load(text, Loader=ConfigLoader)
+    return yaml.load(text, Loader=ConfigLoader)
+
+
+def config_metadata(text):
+    return roformer_metadata(read_roformer_config(text))
+
+
+def roformer_metadata(config, *, local=False):
     if not isinstance(config, dict):
         raise ValueError('Not a model configuration')
     model = config.get('model') or {}
@@ -171,7 +182,9 @@ def config_metadata(text):
     if not {'dim', 'depth'}.issubset(model) or not ({'num_bands', 'freqs_per_bands'} & model.keys()):
         raise ValueError('Architecture is not a supported BS/Mel-Band Roformer')
     unknown = set(model) - MODEL_KEYS - IGNORED_KEYS - {'stft_normalized', 'skip_connection'}
-    if unknown or model.get('stft_normalized') or model.get('skip_connection'):
+    normalized = model.get('stft_normalized', False)
+    normalized_supported = normalized is False or (local and 'num_bands' in model and normalized is True)
+    if unknown or not normalized_supported or model.get('skip_connection'):
         raise ValueError('Needs engine support: ' + ', '.join(sorted(unknown or {'stft_normalized/skip_connection'})))
     stems = training.get('instruments')
     target = training.get('target_instrument')
@@ -182,7 +195,76 @@ def config_metadata(text):
         raise ValueError('Single-stem model has no valid target instrument')
     if count != 1 and count != len(stems):
         raise ValueError('Configuration and output stem count disagree')
+    if local and (any(not s.strip() for s in stems) or len({s.lower() for s in stems}) != len(stems)
+                  or (target and (len(stems) != 2 or count != 1))):
+        raise ValueError('Imported models need distinct stems; a single target must have exactly one complementary stem.')
     return {'stems': stems, 'target_stem': target, 'family': 'MelBand Roformer' if 'num_bands' in model else 'BS Roformer'}
+
+
+def import_local_model(model_dir, weight, config_path):
+    """Validate YAML as data and publish the pair only after copying succeeds."""
+    import yaml
+
+    model_dir, weight, config_path = map(Path, (model_dir, weight, config_path))
+    if weight.suffix.lower() != '.ckpt' or not weight.is_file() or not weight.stat().st_size:
+        raise ValueError('Choose a non-empty Roformer .ckpt checkpoint.')
+    if config_path.suffix.lower() not in ('.yaml', '.yml') or not config_path.is_file():
+        raise ValueError('Choose the matching .yaml or .yml configuration.')
+    try:
+        with config_path.open('rb') as source:
+            text = source.read(MAX_BYTES + 1)
+        if len(text) > MAX_BYTES:
+            raise ValueError('Configuration exceeds the size limit.')
+        config = read_roformer_config(text.decode('utf-8-sig'))
+        metadata = roformer_metadata(config, local=True)
+        # Plain JSON is also valid YAML. Strip all YAML tags/anchors before
+        # handing the private copy to the engine's more permissive loader.
+        serialized = json.dumps({key: config[key] for key in ('model', 'training', 'audio', 'inference')
+                                 if key in config}, allow_nan=False)
+        if len(serialized.encode('utf-8')) > MAX_BYTES:
+            raise ValueError('Expanded configuration exceeds the size limit.')
+    except (yaml.YAMLError, RecursionError, TypeError) as error:
+        raise ValueError('Invalid Roformer YAML configuration.') from error
+
+    imports = model_dir / 'imports'
+    imports.mkdir(parents=True, exist_ok=True)
+    if imports.is_symlink():
+        raise ValueError('The model imports folder must not be a symbolic link.')
+    key = uuid.uuid4().hex
+    with tempfile.TemporaryDirectory(prefix='.import-', dir=imports) as tmp:
+        stage = Path(tmp) / key
+        stage.mkdir()
+        shutil.copyfile(weight, stage / 'model.ckpt')
+        (stage / 'roformer.yaml').write_text(serialized, encoding='utf-8')
+        (stage / 'info.json').write_text(json.dumps({**metadata, 'name': weight.stem}), encoding='utf-8')
+        stage.rename(imports / key)
+    return f'imports/{key}/model.ckpt'
+
+
+def local_model(model_dir, filename):
+    if not LOCAL_FILENAME.fullmatch(filename):
+        return None
+    root = Path(model_dir)
+    folder = (root / filename).parent
+    paths = [folder / name for name in ('model.ckpt', 'roformer.yaml', 'info.json')]
+    if folder.is_symlink() or folder.parent.is_symlink() or any(p.is_symlink() or not p.is_file() for p in paths):
+        return None
+    metadata = read_json(paths[-1])
+    if not isinstance(metadata, dict) or not isinstance(metadata.get('name'), str):
+        return None
+    label = f"{metadata['name']} [Local · {folder.name[:8]}]"
+    return label, {'filename': filename, 'config': paths[1].relative_to(root).as_posix(),
+                   'download_files': [p.relative_to(root).as_posix() for p in paths],
+                   'stems': metadata.get('stems', []), 'target_stem': metadata.get('target_stem'),
+                   'scores': {}, 'backend': 'MLX'}
+
+
+def local_models(model_dir):
+    root = Path(model_dir) / 'imports'
+    if not root.is_dir() or root.is_symlink():
+        return {}
+    entries = (local_model(model_dir, f'imports/{folder.name}/model.ckpt') for folder in root.iterdir())
+    return dict(entry for entry in entries if entry is not None)
 
 
 def _pairs(repo, paths, mappings):

@@ -30,6 +30,12 @@ MODELS = {
     'bs_roformer_inst_hyperacev2.ckpt': {'vocals', 'instrumental'},
     'model_scnet_ep_36_sdr_10.0891.ckpt': {'vocals', 'drums', 'bass', 'other'},
 }
+FLOWERS_URL = ('https://huggingface.co/GaboxR67/MelBandRoformers/resolve/'
+               '7860d31d8cc1c73b46c1cbdc2b497210c97478ae/melbandroformers/instrumental/')
+FLOWERS_FILES = {
+    'inst_gaboxFlowersV10.ckpt': 'fe3aa51927beb60ff345b8b672c11760fb8bdaa6039d8c61631416a5b4f7a047',
+    'v10.yaml': 'e4a8d2ebb57986ce154ce066bca5674b6a3aeda3ed9d623fb49af450335efe1e',
+}
 MACHO = {b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe', b'\xfe\xed\xfa\xcf',
          b'\xfe\xed\xfa\xce', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca',
          b'\xca\xfe\xba\xbf', b'\xbf\xba\xfe\xca'}
@@ -112,12 +118,14 @@ def make_fixture(destination):
         handle.writeframes(frames.tobytes())
 
 
-def inspect_audio(path, ffmpeg, ffprobe, env):
+def inspect_audio(path, ffmpeg, ffprobe, env, *, codec='flac', bits=None):
     data = json_output(run([ffprobe, '-v', 'error', '-show_streams', '-show_format',
                             '-of', 'json', path], env=env))
     stream, = [s for s in data['streams'] if s['codec_type'] == 'audio']
-    if stream['codec_name'] != 'flac' or int(stream['sample_rate']) != 44100 or stream['channels'] != 2:
+    if stream['codec_name'] != codec or int(stream['sample_rate']) != 44100 or stream['channels'] != 2:
         raise RuntimeError(f'Invalid stem format: {path}: {stream}')
+    if bits is not None and int(stream.get('bits_per_raw_sample', 0)) != bits:
+        raise RuntimeError(f'Wrong FLAC bit depth: {path}: {stream}')
     result = subprocess.run([str(ffmpeg), '-v', 'error', '-i', str(path),
                              '-f', 'f32le', '-acodec', 'pcm_f32le', '-'], env=env,
                             capture_output=True, check=True, timeout=120)
@@ -126,7 +134,8 @@ def inspect_audio(path, ffmpeg, ffprobe, env):
         raise RuntimeError(f'Invalid length or non-finite audio: {path}')
     if max(abs(x) for x in samples) < 1e-7:
         raise RuntimeError(f'Silent stem: {path}')
-    return {'file': path.name, 'frames': len(samples) // 2,
+    return {'file': path.name, 'frames': len(samples) // 2, 'codec': codec,
+            'bits_per_raw_sample': stream.get('bits_per_raw_sample'),
             'decoded_sha256': hashlib.sha256(result.stdout).hexdigest()}
 
 
@@ -192,13 +201,16 @@ def validate(archive, version):
             output = work / model / 'output'
             arguments = [source, '--model_filename', model, '--model_file_dir', models,
                          '--output_format', 'FLAC', '--output_dir', output, '--log_level', 'info']
+            bits = 24 if model == 'mel-roformer-zfturbo-vocals-v1-mlx' else None
+            if bits:
+                arguments += ['--output-depth', str(bits)]
             log = run(base + arguments, env=env, timeout=1200)
             stems = {}
             for path in output.glob('*.flac'):
                 matches = [stem for stem in expected if re.search(r'\(' + stem + r'\)', path.name, re.I)]
                 if len(matches) != 1 or matches[0] in stems:
                     raise RuntimeError(f'Unexpected output stem: {path.name}')
-                stems[matches[0]] = inspect_audio(path, ffmpeg, ffprobe, env)
+                stems[matches[0]] = inspect_audio(path, ffmpeg, ffprobe, env, bits=bits)
             if stems.keys() != expected:
                 raise RuntimeError(f'Incorrect stems for {model}: {stems.keys()} != {expected}')
             report['separations'][model] = {'stems': stems, 'log': log[-4000:]}
@@ -210,6 +222,32 @@ def validate(archive, version):
                 if other['decoded_sha256'] != stems['other']['decoded_sha256']:
                     raise RuntimeError('SW Other-only differs from the four-stem Other output')
                 report['sw_other_only_matches'] = True
+        print('Importing and separating with Gabox Flowers V10', flush=True)
+        pair = []
+        for name, expected_hash in FLOWERS_FILES.items():
+            destination = work / name
+            run(['/usr/bin/curl', '-fsSL', '--retry', '2', '--output', destination, FLOWERS_URL + name],
+                env=env, timeout=900)
+            if sha256(destination) != expected_hash:
+                raise RuntimeError(f'Flowers V10 fixture checksum differs: {name}')
+            pair.append(destination)
+        imported = work / 'local-models'  # no engine registry or download cache here
+        identifier = run(base + ['--gui-import-model', *pair, '--model_file_dir', imported], env=env).strip()
+        if not re.fullmatch(r'imports/[0-9a-f]{32}/model\.ckpt', identifier):
+            raise RuntimeError(f'Invalid imported model ID: {identifier}')
+        for original in pair:
+            original.unlink()  # the worker must use the managed copy
+        report['local_import'] = {}
+        for depth, codec in (('24', 'pcm_s24le'), ('32-float', 'pcm_f32le')):
+            folder = work / ('flowers-' + depth)
+            run(base + [source, '-m', identifier, '--model_file_dir', imported, '--output_dir', folder,
+                        '--output_format', 'WAV', '--output-depth', depth, '--mdxc-batch-size', '2'],
+                env=env, timeout=1200)
+            by_stem = {s: list(folder.glob(f'*_({s})_*.wav')) for s in ('other', 'vocals')}
+            if len(list(folder.glob('*.wav'))) != 2 or any(len(files) != 1 for files in by_stem.values()):
+                raise RuntimeError(f'Incorrect Flowers V10 stems for {depth}-bit export')
+            report['local_import'][depth] = {s: inspect_audio(files[0], ffmpeg, ffprobe, env, codec=codec)
+                                             for s, files in by_stem.items()}
         report['model_files'] = {str(p.relative_to(models)): sha256(p)
                                  for p in models.rglob('*') if p.is_file()}
     return report

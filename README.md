@@ -96,9 +96,11 @@ reuses your Python install instead of bundling one, so it's much smaller.
    find vocals/drums/bass/other models. *Quality* shows
    the published SDR plus the benchmark it came from (MUSDB or MVSEP's harder
    multisong set), so only compare scores carrying the same tag.
-3. **Choose what you get** — output format, all stems or just one (e.g.
-   *Vocals only* or *Drums only*), and where to save. Leave *Save to* empty to
-   put the stems next to each song.
+3. **Choose what you get** — output format and bit depth, all stems or just one
+   (e.g. *Vocals only*), processing quality, and where to save. WAV supports
+   16-/24-bit PCM and 32-bit float; FLAC supports 16-/24-bit PCM. **Auto**
+   keeps the previous encoder behavior. MP3 has no PCM bit-depth setting.
+   Leave *Save to* empty to put the stems next to each song.
 4. Press **Separate**. Progress shows in the bar; you can **Cancel** anytime,
    and you'll get a notification when the stems are ready.
 
@@ -107,6 +109,14 @@ Good to know:
 - A model downloads once (typically a few hundred MB) and is kept in
   `~/Library/Application Support/MLX Audio Separator/models`. Right-click a
   downloaded model in the list to reveal or delete it.
+- **Import model…** copies a trusted, compatible BS-Roformer or Mel-Band
+  Roformer `.ckpt` and its matching `.yaml`/`.yml` into app storage. For example,
+  use Gabox's [Flowers V10 checkpoint and `v10.yaml`](https://huggingface.co/GaboxR67/MelBandRoformers/tree/main/melbandroformers/instrumental).
+  The row is marked **Local** and works offline. Removing it deletes the app's
+  copy, not the original files. Other architectures may need engine support.
+- **Quality → Advanced…** shows the selected architecture's controls. For
+  MLX Roformer/MDXC, Balanced starts at 256 frames, overlap count 4, batch 1.
+  See [quality settings](docs/quality-settings.md) for the model-specific defaults.
 - A 3–4 minute song typically separates in well under a minute on an M-series
   Mac, after the model is downloaded.
 - Right-click a model for **Quality and model details**: exact per-stem SDR,
@@ -140,7 +150,7 @@ addition is a vendored **tkdnd** Tcl extension for drag-and-drop — loaded via
 | `model_catalog.py` | Online registry/score refresh, Hugging Face discovery, validation and atomic offline cache |
 | `score_overrides.json` | Verified missing SDR measurements with benchmark and primary-source URLs |
 | `catalog_settings.json` | Checkpoint/config pairings, renamed-model aliases and repositories requiring review |
-| `runner.py` | Engine shim (`main()`): puts the bundled (or Homebrew) `ffmpeg` on `PATH` for Finder-launched apps and patches `mlx_audio_io.save` to tolerate 24/32-bit sources |
+| `runner.py` | Engine shim (`main()`): bundled FFmpeg, local model import, quality settings and explicit WAV/FLAC bit-depth export |
 | `main_bundle.py` | PyInstaller entry point; one frozen binary runs as the GUI or, with `--separator-runner`, as the engine the GUI subprocesses |
 | `setup.sh` | Source install: venv + engine + `build.sh` |
 | `build.sh` | Builds the lightweight `.app` that runs on your Python (used by `setup.sh`) |
